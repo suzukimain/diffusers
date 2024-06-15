@@ -285,7 +285,7 @@ class FromOriginalModelMixin:
                     f"Some weights of the model checkpoint were not used when initializing {cls.__name__}: \n {[', '.join(unexpected_keys)]}"
                 )
         else:
-            model.load_state_dict(diffusers_format_checkpoint)
+            model.load_state_dict(diffusers_format_checkpoint, strict=False)
 
         if torch_dtype is not None:
             model.to(torch_dtype)
