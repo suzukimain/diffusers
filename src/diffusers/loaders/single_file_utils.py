@@ -331,7 +331,7 @@ def load_single_file_checkpoint(
             revision=revision,
         )
 
-    checkpoint = load_state_dict(pretrained_model_link_or_path)
+    checkpoint = load_state_dict(pretrained_model_link_or_path, strict=False)
 
     # some checkpoints contain the model state dict under a "state_dict" key
     while "state_dict" in checkpoint:
@@ -1812,4 +1812,4 @@ def create_diffusers_t5_model_from_checkpoint(
             )
 
     else:
-        model.load_state_dict(diffusers_format_checkpoint)
+        model.load_state_dict(diffusers_format_checkpoint, strict=False)
