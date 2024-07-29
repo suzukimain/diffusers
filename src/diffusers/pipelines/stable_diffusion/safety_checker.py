@@ -50,7 +50,19 @@ class StableDiffusionSafetyChecker(PreTrainedModel):
         self.adjustment = 0.0
     
     def safety_Level_update(self,Level):
-        setattr(self,"adjustment",Level)
+        Level_dict = {
+            "WEAK": -0.2,
+            "MEDIUM": -0.1,
+            "NOMAL": 0.0,
+            "STRONG": 0.1,
+            "MAX": 0.2,
+            }
+        if Level in Level_dict:
+            Level = Level_dict[Level] 
+        if isinstance(Level, (float, int): 
+            setattr(self,"adjustment",Level)
+        else:
+            raise ValueError("`int` or `float` or one of the following ['WEAK'], ['MEDIUM'], ['NOMAL'], ['STRONG'], ['MAX']")
     
     def safety_Level(self):
         return self.adjustment
