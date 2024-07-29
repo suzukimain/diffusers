@@ -236,7 +236,7 @@ class StableDiffusionPipeline(
                 " checker. If you do not want to use the safety checker, you can pass `'safety_checker=None'` instead."
             )
         
-        safety_checker = self.safety_checker_level(safety_Level, safety_checker)
+        safety_checker = self.safety_checker_Level(safety_Level, safety_checker)
 
         is_unet_version_less_0_9_0 = hasattr(unet.config, "_diffusers_version") and version.parse(
             version.parse(unet.config._diffusers_version).base_version
@@ -273,7 +273,7 @@ class StableDiffusionPipeline(
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
         self.register_to_config(requires_safety_checker=requires_safety_checker)
 
-    def safety_checker_level(
+    def safety_checker_Level(
             self,
             Level,
             safety_checker,
@@ -288,12 +288,16 @@ class StableDiffusionPipeline(
         if safety_checker is not None:
             if isinstance(Level, str):
                 Level = Level_dict[Level]
-            setattr(safety_checker, "adjustment", Level)
+            if hasattr(safety_checker,"safety_Level_update"):
+                safety_checker.safety_Level_update(Level)
         
         elif not Level == "NOMAL":
             logger.warning("`safety_Level` is ignored if safety_checker is disabled.")
         
         return safety_checker
+    
+    def safety_Level(self):
+        return getattr()
 
     def _encode_prompt(
         self,

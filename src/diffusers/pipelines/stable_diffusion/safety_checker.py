@@ -35,8 +35,6 @@ class StableDiffusionSafetyChecker(PreTrainedModel):
 
     _no_split_modules = ["CLIPEncoderLayer"]
 
-    adjustment = 0.0
-
     def __init__(self, config: CLIPConfig):
         super().__init__(config)
 
@@ -48,6 +46,14 @@ class StableDiffusionSafetyChecker(PreTrainedModel):
 
         self.concept_embeds_weights = nn.Parameter(torch.ones(17), requires_grad=False)
         self.special_care_embeds_weights = nn.Parameter(torch.ones(3), requires_grad=False)
+
+        self.adjustment = 0.0
+    
+    def safety_Level_update(self,Level):
+        setattr(self,"adjustment",Level)
+    
+    def safety_Level(self):
+        return self.adjustment
 
     @torch.no_grad()
     def forward(self, clip_input, images):
