@@ -288,7 +288,7 @@ class StableDiffusionPipeline(
         if safety_checker is not None:
             if isinstance(Level, str):
                 Level = Level_dict[Level]
-            setattr(safety_checker.adjustment, Level)
+            setattr(safety_checker, "adjustment", Level)
         
         elif not Level == "NOMAL":
             logger.warning("`safety_Level` is ignored if safety_checker is disabled.")
