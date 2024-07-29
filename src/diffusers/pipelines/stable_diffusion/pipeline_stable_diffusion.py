@@ -278,7 +278,7 @@ class StableDiffusionPipeline(
             Level,
             safety_checker,
     ):
-        if hastter(safety_checker,"safety_Level_update"):
+        if hasattr(safety_checker,"safety_Level_update"):
             safety_checker.safety_Level_update(Level)
 
     def _encode_prompt(

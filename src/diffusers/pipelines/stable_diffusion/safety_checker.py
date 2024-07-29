@@ -59,7 +59,7 @@ class StableDiffusionSafetyChecker(PreTrainedModel):
             }
         if Level in Level_dict:
             Level = Level_dict[Level] 
-        if isinstance(Level, (float, int): 
+        if isinstance(Level, (float, int)): 
             setattr(self,"adjustment",Level)
         else:
             raise ValueError("`int` or `float` or one of the following ['WEAK'], ['MEDIUM'], ['NOMAL'], ['STRONG'], ['MAX']")
