@@ -35,6 +35,8 @@ class StableDiffusionSafetyChecker(PreTrainedModel):
 
     _no_split_modules = ["CLIPEncoderLayer"]
 
+    adjustment = 0.0
+
     def __init__(self, config: CLIPConfig):
         super().__init__(config)
 
@@ -63,20 +65,20 @@ class StableDiffusionSafetyChecker(PreTrainedModel):
 
             # increase this value to create a stronger `nfsw` filter
             # at the cost of increasing the possibility of filtering benign images
-            adjustment = 0.0
+            #adjustment = 0.0
 
             for concept_idx in range(len(special_cos_dist[0])):
                 concept_cos = special_cos_dist[i][concept_idx]
                 concept_threshold = self.special_care_embeds_weights[concept_idx].item()
-                result_img["special_scores"][concept_idx] = round(concept_cos - concept_threshold + adjustment, 3)
+                result_img["special_scores"][concept_idx] = round(concept_cos - concept_threshold + self.adjustment, 3)
                 if result_img["special_scores"][concept_idx] > 0:
                     result_img["special_care"].append({concept_idx, result_img["special_scores"][concept_idx]})
-                    adjustment = 0.01
+                    self.adjustment = 0.01
 
             for concept_idx in range(len(cos_dist[0])):
                 concept_cos = cos_dist[i][concept_idx]
                 concept_threshold = self.concept_embeds_weights[concept_idx].item()
-                result_img["concept_scores"][concept_idx] = round(concept_cos - concept_threshold + adjustment, 3)
+                result_img["concept_scores"][concept_idx] = round(concept_cos - concept_threshold + self.adjustment, 3)
                 if result_img["concept_scores"][concept_idx] > 0:
                     result_img["bad_concepts"].append(concept_idx)
 
@@ -109,9 +111,9 @@ class StableDiffusionSafetyChecker(PreTrainedModel):
 
         # increase this value to create a stronger `nsfw` filter
         # at the cost of increasing the possibility of filtering benign images
-        adjustment = 0.0
+        #adjustment = 0.0
 
-        special_scores = special_cos_dist - self.special_care_embeds_weights + adjustment
+        special_scores = special_cos_dist - self.special_care_embeds_weights + self.adjustment
         # special_scores = special_scores.round(decimals=3)
         special_care = torch.any(special_scores > 0, dim=1)
         special_adjustment = special_care * 0.01

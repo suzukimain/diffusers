@@ -166,6 +166,9 @@ class StableDiffusionPipeline(
             Classification module that estimates whether generated images could be considered offensive or harmful.
             Please refer to the [model card](https://huggingface.co/runwayml/stable-diffusion-v1-5) for more details
             about a model's potential harms.
+        safety_Level ([`str`,`float`,`int`]):
+            Adjust the filter intensity. `int` or `float` or one of the following
+            [`WEAK`], [`MEDIUM`], [`NOMAL`], [`STRONG`], [`MAX`].
         feature_extractor ([`~transformers.CLIPImageProcessor`]):
             A `CLIPImageProcessor` to extract features from generated images; used as inputs to the `safety_checker`.
     """
@@ -186,6 +189,7 @@ class StableDiffusionPipeline(
         feature_extractor: CLIPImageProcessor,
         image_encoder: CLIPVisionModelWithProjection = None,
         requires_safety_checker: bool = True,
+        safety_Level = "NOMAL",
     ):
         super().__init__()
 
@@ -231,6 +235,8 @@ class StableDiffusionPipeline(
                 "Make sure to define a feature extractor when loading {self.__class__} if you want to use the safety"
                 " checker. If you do not want to use the safety checker, you can pass `'safety_checker=None'` instead."
             )
+        
+        safety_checker = self.safety_checker_level(safety_Level, safety_checker)
 
         is_unet_version_less_0_9_0 = hasattr(unet.config, "_diffusers_version") and version.parse(
             version.parse(unet.config._diffusers_version).base_version
@@ -266,6 +272,28 @@ class StableDiffusionPipeline(
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
         self.register_to_config(requires_safety_checker=requires_safety_checker)
+
+    def safety_checker_level(
+            self,
+            Level,
+            safety_checker,
+    ):
+        Level_dict = {
+            "WEAK": -0.2,
+            "MEDIUM": -0.1,
+            "NOMAL": 0.0,
+            "STRONG": 0.1,
+            "MAX": 0.2,
+            }
+        if safety_checker is not None:
+            if not hasattr(Level, str):
+                safety_LEVEL = Level_dict[Level]
+            setattr(safety_checker.adjustment, safety_LEVEL)
+        
+        elif not Level == "NOMAL":
+            logger.warning("`safety_Level` is ignored if safety_checker is disabled.")
+        
+        return safety_checker
 
     def _encode_prompt(
         self,
