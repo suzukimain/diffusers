@@ -278,24 +278,8 @@ class StableDiffusionPipeline(
             Level,
             safety_checker,
     ):
-        Level_dict = {
-            "WEAK": -0.2,
-            "MEDIUM": -0.1,
-            "NOMAL": 0.0,
-            "STRONG": 0.1,
-            "MAX": 0.2,
-            }
-        if safety_checker is not None:
-            if Level in Level_dict:
-                Level = Level_dict[Level] 
-            if hasattr(safety_checker,"safety_Level_update"):
-                safety_checker.safety_Level_update(Level)
-            logger.debug(f"Level: {Level}")
-        
-        elif not Level == "NOMAL":
-            logger.warning("`safety_Level` is ignored if safety_checker is disabled.")
-        
-        return safety_checker
+        if hastter(safety_checker,"safety_Level_update"):
+            safety_checker.safety_Level_update(Level)
 
     def _encode_prompt(
         self,
