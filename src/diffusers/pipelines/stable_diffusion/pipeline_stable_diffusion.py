@@ -189,7 +189,6 @@ class StableDiffusionPipeline(
         feature_extractor: CLIPImageProcessor,
         image_encoder: CLIPVisionModelWithProjection = None,
         requires_safety_checker: bool = True,
-        safety_Level = "NOMAL",
     ):
         super().__init__()
 
@@ -235,8 +234,6 @@ class StableDiffusionPipeline(
                 "Make sure to define a feature extractor when loading {self.__class__} if you want to use the safety"
                 " checker. If you do not want to use the safety checker, you can pass `'safety_checker=None'` instead."
             )
-        
-        safety_checker = self.safety_checker_Level(safety_Level, safety_checker)
 
         is_unet_version_less_0_9_0 = hasattr(unet.config, "_diffusers_version") and version.parse(
             version.parse(unet.config._diffusers_version).base_version
