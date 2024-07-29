@@ -295,9 +295,6 @@ class StableDiffusionPipeline(
             logger.warning("`safety_Level` is ignored if safety_checker is disabled.")
         
         return safety_checker
-    
-    def safety_Level(self):
-        return getattr()
 
     def _encode_prompt(
         self,
