@@ -286,7 +286,7 @@ class StableDiffusionPipeline(
             "MAX": 0.2,
             }
         if safety_checker is not None:
-            if not hasattr(Level, str):
+            if hasattr(Level, str):
                 safety_LEVEL = Level_dict[Level]
             setattr(safety_checker.adjustment, safety_LEVEL)
         
