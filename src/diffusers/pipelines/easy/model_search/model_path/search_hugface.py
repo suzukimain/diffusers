@@ -2,18 +2,12 @@ import re
 import requests
 from requests import HTTPError
 
-
 from dataclasses import asdict
-
-
 from huggingface_hub import (
     hf_hub_download, 
     HfApi,
     login
     )
-
-
-
 
 from ....pipeline_utils import DiffusionPipeline
 from .....loaders.single_file_utils import VALID_URL_PREFIXES

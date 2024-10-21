@@ -7,7 +7,6 @@ class config_check:
     def __init__(self):
         pass
 
-
     def check_func_hist(
             self,
             key,
