@@ -1,6 +1,6 @@
 from .search_hugface import Huggingface
 from .search_civitai import Civitai
-from ..setup.base_config import Basic_config
+from ..search_utils.base_config import Basic_config
 
 
 class Config_Mix(

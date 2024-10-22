@@ -10,9 +10,12 @@ from huggingface_hub import (
     )
 
 from ....pipeline_utils import DiffusionPipeline
-from .....loaders.single_file_utils import VALID_URL_PREFIXES
+from .....loaders.single_file_utils import (
+    VALID_URL_PREFIXES,
+    is_valid_url
+    )
 
-from ..setup.base_config import Basic_config
+from ..search_utils.base_config import Basic_config
 
 
 class Huggingface(Basic_config):
@@ -69,7 +72,7 @@ class Huggingface(Basic_config):
         """     
         model_file_path = ""
         if any(url_or_path.startswith(checked) for checked in VALID_URL_PREFIXES):
-            if not self.is_url_valid(url_or_path):
+            if not is_valid_url(url_or_path):
                 raise HTTPError(f"Invalid URL: {url_or_path}")
             hf_path, file_name = self.repo_name_or_path(url_or_path)
             self.logger.debug(f"url_or_path:{url_or_path}")
@@ -125,12 +128,12 @@ class Huggingface(Basic_config):
             branch = "main"
             ) -> bool:
         index_url=f"https://huggingface.co/{checked_model}/blob/{branch}/model_index.json"
-        return self.is_url_valid(index_url)
+        return is_valid_url(index_url)
 
 
     def hf_model_check(self,path) -> bool:
         # Determine if a repository exists on the huggingface.
-        return self.is_url_valid(f"https://huggingface.co/{path}")
+        return is_valid_url(f"https://huggingface.co/{path}")
 
 
     def model_data_get(

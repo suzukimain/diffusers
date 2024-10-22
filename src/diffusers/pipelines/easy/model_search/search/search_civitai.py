@@ -3,7 +3,9 @@ import requests
 from requests import HTTPError
 from tqdm.auto import tqdm
 
-from ..setup.base_config import Basic_config
+from .....loaders.single_file_utils import is_valid_url
+
+from ..search_utils.base_config import Basic_config
 
 
 class Civitai(Basic_config):
@@ -339,7 +341,7 @@ class Civitai(Basic_config):
             save_path, 
             civitai_token=None
             ):
-        if not self.is_url_valid(url):
+        if not is_valid_url(url):
             raise requests.HTTPError("URL is invalid.")
         
         headers = {}

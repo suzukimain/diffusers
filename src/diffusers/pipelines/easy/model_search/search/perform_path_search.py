@@ -1,5 +1,6 @@
 import os
 
+from .....loaders.single_file_utils import is_valid_url
 
 from .mix_class import Config_Mix
 
@@ -174,7 +175,7 @@ class Search_cls(Config_Mix):
         if model_select in self.model_dict:
             model_path_to_check = self.model_dict[model_select]
             _check_url = f"https://huggingface.co/{model_path_to_check}"
-            if self.is_url_valid(_check_url):
+            if is_valid_url(_check_url):
                 model_select = model_path_to_check
                 self.model_data["model_path"] = _check_url
 
@@ -188,7 +189,7 @@ class Search_cls(Config_Mix):
             self.model_data["load_type"] = "from_single_file"
 
         elif model_select.startswith("https://huggingface.co/"):
-            if not self.is_url_valid(model_select):
+            if not is_valid_url(model_select):
                 raise ValueError(self.Error_M1)
             else:
                 if download:
