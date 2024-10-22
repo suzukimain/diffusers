@@ -36,7 +36,7 @@ class Huggingface(Basic_config):
         pattern = r"([^/]+)/([^/]+)/(?:blob/main/)?(.+)"
         weights_name = None
         repo_id = None
-        for prefix in self.VALID_URL_PREFIXES:
+        for prefix in VALID_URL_PREFIXES:
             model_name_or_path = model_name_or_path.replace(prefix, "")
         match = re.match(pattern, model_name_or_path)
         if not match:
@@ -68,7 +68,7 @@ class Huggingface(Basic_config):
         os.path(str)
         """     
         model_file_path = ""
-        if any(url_or_path.startswith(checked) for checked in self.VALID_URL_PREFIXES):
+        if any(url_or_path.startswith(checked) for checked in VALID_URL_PREFIXES):
             if not self.is_url_valid(url_or_path):
                 raise HTTPError(f"Invalid URL: {url_or_path}")
             hf_path, file_name = self.repo_name_or_path(url_or_path)
@@ -236,7 +236,7 @@ class Huggingface(Basic_config):
         """
         Return:
             0 for models that passed the scan,
-            1 for models not scanned or in error, and
+            1 for models not scanned or in error,
             2 if there is a security risk.
         """
         try:

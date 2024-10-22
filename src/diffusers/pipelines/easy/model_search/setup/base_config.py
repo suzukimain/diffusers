@@ -2,26 +2,19 @@ import os
 import json
 import inspect
 import difflib
-import importlib 
 
-import diffusers
 from natsort import natsorted
-from importlib import (
-    metadata,
-    util
-    )
 
 from .device_config import device_set
-from .data_class import data_config
+from .data_class import DataConfig
 from .runtime_config import Runtime_func
-from ..utils.get_custom_logger import custom_logger
 
 
-class config_check:
+
+class DataStoreManager:
     base_config_json = "/tmp/diffusers_easy_pipeline_config.json"
     def __init__(self):
         pass
-
 
     def check_func_hist(
             self,
@@ -81,10 +74,9 @@ class config_check:
 
 
 
-
 class Basic_config(  
-    data_config,
-    config_check,
+    DataConfig,
+    DataStoreManager,
     Runtime_func,
     device_set
     ):

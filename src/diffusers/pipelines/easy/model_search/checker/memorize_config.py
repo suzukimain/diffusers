@@ -2,8 +2,10 @@ import os
 import json
 
 
-class config_check:
+
+class DataStoreManager:
     base_config_json = "/tmp/auto_diffusers_config.json"
+
     def __init__(self):
         pass
 

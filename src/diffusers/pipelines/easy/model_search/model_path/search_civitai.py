@@ -44,7 +44,6 @@ class Civitai(Basic_config):
 
     def __init__(self):
         super().__init__()
-        self.save_file_name = ""
     
 
     def civitai_model_set(
@@ -104,33 +103,39 @@ class Civitai(Basic_config):
                 save_path=model_save_path,
                 civitai_token=civitai_token
                 )
-            
             model_path = model_save_path
         else:
             model_path = model_url
         
-        self.return_dict["model_status"]["single_file"] = True
+        self.model_data["model_status"]["single_file"] = True
         if download:
-            self.return_dict["load_type"] = "from_single_file"
+            self.model_data["load_type"] = "from_single_file"
         else:
-            self.return_dict["load_type"] = ""
+            self.model_data["load_type"] = ""
  
-        self.return_dict["model_path"] = model_path
+        self.model_data["model_path"] = model_path
         return model_path
     
 
-    def civitai_security_check(self,value):
+    def civitai_security_check(self,value) -> int:
         """
-        Note:
-        The virus scan and pickle scan are used to make the decision.
-        Returns True if judged to be dangerous.
+        Return:
+            0 for models that passed the scan,
+            1 for models not scanned or in error,
+            2 if there is a security risk.
         """
-        check_list = [value["pickleScanResult"],value["virusScanResult"]]
-
+        try:
+            pickleScan = value["pickleScanResult"]
+            virusScan = value["virusScanResult"]
+        except KeyError:
+            return 1
+        check_list = [pickleScan, virusScan]
         if all(status == "Success" for status in check_list):
-            return False
+            return 0
+        elif "Danger" in check_list:
+            return 2
         else:
-            return True
+            return 1
     
 
     def requests_civitai(
@@ -165,7 +170,11 @@ class Civitai(Basic_config):
         model_ver_list = []
         version_dict = {}
 
-        params = {"query": query, "types": model_type, "sort": "Most Downloaded"}
+        params = {
+            "query": query, 
+            "types": model_type, 
+            "sort": "Most Downloaded"
+            }
 
         headers = {}
         if civitai_token:
@@ -189,8 +198,8 @@ class Civitai(Basic_config):
                 files_list = []
                 for model_value in model_ver["files"]:
                     security_risk = self.civitai_security_check(model_value)
-                    if (any(check_word in model_value for check_word in ["downloadUrl", "name"]) and
-                        not security_risk
+                    if (any(check_word in model_value for check_word in ["downloadUrl", "name"]) 
+                        and not security_risk
                         ):
                         file_status = {
                             "filename": model_value["name"],
@@ -227,7 +236,6 @@ class Civitai(Basic_config):
         if not state:
             self.logger.warning("There is no model in Civitai that fits the criteria.")
             return {}
-            #raise ValueError("No matches found for your criteria")
 
         dict_of_civitai_repo = self.repo_select_civitai(
             state = state,
@@ -236,17 +244,22 @@ class Civitai(Basic_config):
             )
         
         if not dict_of_civitai_repo:
-            return []
+            return []            
         
         files_list = self.version_select_civitai(
             state = dict_of_civitai_repo,
             auto = auto
             )
+        
 
         file_status_dict = self.file_select_civitai(
             state_list = files_list,
             auto = auto
             )
+        self.model_data["repo_status"]["repo_name"] = dict_of_civitai_repo["repo_name"]
+        self.model_data["repo_status"]["repo_id"] = dict_of_civitai_repo["repo_id"]
+        self.model_data["repo_status"]["version_id"] = files_list["id"]
+        self.model_data["model_status"].update(file_status_dict)
 
         save_path = self.civitai_save_path()
         return [file_status_dict["download_url"],save_path] 
@@ -275,8 +288,6 @@ class Civitai(Basic_config):
 
         elif auto:
             repo_dict = max(state, key=lambda x: x['downloadCount'])
-            self.return_dict["repo_status"]["repo_name"] = repo_dict["repo_name"]
-            self.return_dict["repo_status"]["repo_id"] = repo_dict["repo_id"]
             return repo_dict
         else:
             sorted_list = sorted(state, key=lambda x: x['downloadCount'], reverse=True)
@@ -308,13 +319,15 @@ class Civitai(Basic_config):
                     continue
 
                 if Limit_choice and choice == max_number:
-                    return self.repo_select_civitai(state=state, auto=auto, recursive=False)
+                    return self.repo_select_civitai(
+                        state=state,
+                        auto=auto,
+                        recursive=False
+                        )
                 elif choice == 0 and include_hugface:
                     return {}
                 elif 1 <= choice <= max_number:
                     repo_dict = sorted_list[choice - 1]
-                    self.return_dict["repo_status"]["repo_name"] = repo_dict["repo_name"]
-                    self.return_dict["repo_status"]["repo_id"] = repo_dict["repo_id"]
                     return repo_dict
                 else:
                     print(f"\033[33mPlease enter the numbers 1~{max_number}\033[0m")
@@ -334,11 +347,10 @@ class Civitai(Basic_config):
             headers['Authorization'] = f'Bearer {civitai_token}'
 
         response = requests.get(url, stream=True, headers=headers)
-
         try:
             response.raise_for_status()
         except requests.HTTPError:
-            raise requests.HTTPError(f"Invalid URL: {response.status_code}")
+            raise requests.HTTPError(f"Invalid URL: {url}, {response.status_code}")
 
         os.makedirs(os.path.dirname(save_path),exist_ok=True)
 
@@ -374,9 +386,9 @@ class Civitai(Basic_config):
 
         if auto:
             result = max(ver_list, key=lambda x: x['downloadCount'])
-            ver_files_list = self.sort_by_version(result["files"])
-            self.return_dict["repo_status"]["version_id"] = result["id"]
-            return ver_files_list
+            version_files_list = self.sort_by_version(result["files"])
+            self.model_data["repo_status"]["version_id"] = result["id"]
+            return version_files_list
         else:
             if recursive:
                 print("\n\n\033[34mThe following model paths were found\033[0m")
@@ -403,10 +415,13 @@ class Civitai(Basic_config):
                     print("\033[33mOnly natural numbers are valid.\033[0m")
                     continue
                 if Limit_choice and choice == max_number:
-                    return self.version_select_civitai(state=state, auto=auto, recursive=False)
+                    return self.version_select_civitai(
+                        state=state,
+                        auto=auto,
+                        recursive=False
+                        )
                 elif 1 <= choice <= max_number:
                     return_dict = ver_list[choice - 1]
-                    self.return_dict["repo_status"]["version_id"] = return_dict["id"]
                     return return_dict["files"]
                 else:
                     print(f"\033[33mPlease enter the numbers 1~{max_number}\033[0m")
@@ -430,7 +445,7 @@ class Civitai(Basic_config):
             Limit_choice = False
 
         if len(state_list) > 1 and (not auto):
-            max_number = min(self.max_number_of_choices, len(state_list)) if recursive else len(state_list)
+            max_number = len(state_list) if not recursive else min(self.max_number_of_choices, len(state_list))
             for number, states_dict in enumerate(state_list[:max_number]):
                 print(f"\033[34m{number + 1}. File_name: {states_dict['filename']}")
 
@@ -445,16 +460,20 @@ class Civitai(Basic_config):
                     print("\033[33mOnly natural numbers are valid.\033[0m")
                     continue
                 if Limit_choice and choice == max_number:
-                    return self.file_select_civitai(state_list=state_list, auto=auto, recursive=False)
+                    return self.file_select_civitai(
+                        state_list=state_list,
+                        auto=auto,
+                        recursive=False
+                        )
                 elif 1 <= choice <= len(state_list):
                     file_dict = state_list[choice - 1]
-                    self.return_dict["model_status"].update(file_dict)
+                    self.model_data["model_status"].update(file_dict)
                     return file_dict
                 else:
                     print(f"\033[33mPlease enter the numbers 1~{len(state_list)}\033[0m")
         else:
             file_dict = state_list[0]
-            self.return_dict["model_status"].update(file_dict)
+            self.model_data["model_status"].update(file_dict)
             return state_list[0]
 
 
@@ -465,9 +484,9 @@ class Civitai(Basic_config):
         Returns:
         - str: Save path.
         """
-        repo_level_dir = str(self.return_dict["repo_status"]["repo_id"])
-        file_version_dir = str(self.return_dict["repo_status"]["version_id"])
-        save_file_name = str(self.return_dict["model_status"]["filename"])
+        repo_level_dir = str(self.model_data["repo_status"]["repo_id"])
+        file_version_dir = str(self.model_data["repo_status"]["version_id"])
+        save_file_name = str(self.model_data["model_status"]["filename"])
         save_path = os.path.join(self.base_civitai_dir, repo_level_dir, file_version_dir, save_file_name)
-        self.return_dict["model_path"] = save_path
+        self.model_data["model_path"] = save_path
         return save_path
