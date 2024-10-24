@@ -6,7 +6,7 @@ from .mix_class import Config_Mix
 from ..search_utils.config_class import ModelData
 
 
-class Search_cls(Config_Mix):
+class ModelSearch(Config_Mix):
     def __init__(self):
         super().__init__()
     

@@ -20,7 +20,7 @@ from ..search_utils.base_config import Basic_config
 from ..search_utils.config_class import ModelData
 
 
-class Huggingface(Basic_config):
+class HFSearch(Basic_config):
     """
     Huggingface class is used to search and download models from Huggingface.
 

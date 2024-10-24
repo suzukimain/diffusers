@@ -1,11 +1,11 @@
-from .search_hugface import Huggingface
-from .search_civitai import Civitai
+from .search_hugface import HFSearch
+from .search_civitai import CivitaiSearch
 from ..search_utils.base_config import Basic_config
 
 
 class Config_Mix(
-    Huggingface,
-    Civitai,
+    HFSearch,
+    CivitaiSearch,
     Basic_config
     ):
     #fix MMO error

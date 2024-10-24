@@ -1,3 +1,7 @@
-from .search.perform_path_search import Search_cls
+from search import (
+    ModelSearch,
+    HFSearch,
+    CivitaiSearch
+    )
 
-model_search = Search_cls()
+model_search = ModelSearch()
