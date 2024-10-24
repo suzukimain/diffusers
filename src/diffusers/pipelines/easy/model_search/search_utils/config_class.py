@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 @dataclass
 class DataConfig:
     Config_file: str = "model_index.json"
@@ -117,14 +118,14 @@ class ModelStatus:
 @dataclass
 class ModelData:
     """
-    {
-        "model_path": "",
-        "load_type": "",  # "" or "from_single_file" or "from_pretrained"
+    MAP:
+       {"model_path": "",
+        "load_type": "",
         "repo_status": {
             "repo_name": "",
             "repo_id": "",
             "version_id": ""
-        },
+            },
         "model_status": {
             "search_word": "",
             "download_url": "",
@@ -133,10 +134,9 @@ class ModelData:
             "fp": "",
             "local": False,
             "single_file": False
-        }
-    }
+            }
+       }
     """
-
     model_path: str = ""
     load_type: str = ""  # "" or "from_single_file" or "from_pretrained"
     repo_status: RepoStatus = RepoStatus()

@@ -83,7 +83,7 @@ class Search_cls(Config_Mix):
             else:
                 raise TypeError(f"\033[33mOnly natural numbers in the following range are valid : (1〜{len(paths)})\033[0m")
         else:
-            search_path = self.max_temper(
+            search_path = self.find_closest_match(
                 search_word = search_word,
                 search_list = paths
                 )
@@ -218,7 +218,6 @@ class Search_cls(Config_Mix):
                     civitai_token=civitai_token,
                     skip_error=False
                     )
-                    
 
         elif os.path.isfile(model_select):
             model_path = model_select
@@ -226,7 +225,6 @@ class Search_cls(Config_Mix):
             self.model_data["model_status"]["single_file"] = True
             self.model_data["load_type"] = "from_single_file"
             self.model_data["model_status"]["local"] = True
-
 
         elif os.path.isdir(model_select):
             if os.path.exists(os.path.join(model_select,self.Config_file)):

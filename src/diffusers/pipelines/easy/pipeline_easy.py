@@ -169,7 +169,7 @@ class AutoPipeline(Search_cls,Basic_config):
             if hasattr(diffusers, cls_or_name):
                 return getattr(diffusers, cls_or_name)
             else:
-                candidate = self.max_temper(cls_or_name,dir(diffusers))
+                candidate = self.find_closest_match(cls_or_name,dir(diffusers))
                 error_txt = f"Maybe {candidate}?" if candidate else ""
                 raise ValueError(f"{cls_or_name} is not in diffusers.{error_txt}")
         
@@ -177,6 +177,6 @@ class AutoPipeline(Search_cls,Basic_config):
             return cls_or_name
         
         else:
-            candidate = self.max_temper(cls_or_name,dir(diffusers))
+            candidate = self.find_closest_match(cls_or_name,dir(diffusers))
             error_txt = f"Maybe {candidate}?" if candidate else ""
             raise ValueError(f"{cls_or_name} is not in diffusers.{error_txt}")

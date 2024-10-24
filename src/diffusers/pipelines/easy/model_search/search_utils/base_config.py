@@ -1,11 +1,20 @@
 import os
 import json
 import inspect
+import importlib
 import difflib
+from dataclasses import is_dataclass
 
 from natsort import natsorted
 
-from .data_class import DataConfig
+from ..... import pipelines 
+from .config_class import DataConfig
+
+TASK_KEY_MAPPING = {
+    "txt2img" : ["images"],
+    "txt2video" : ["frames"],
+    "txt2audio" : ["audios"],
+    }
 
 
 class DataStoreManager:
@@ -70,23 +79,21 @@ class DataStoreManager:
             json.dump(basic_json_dict, json_file, indent=4)
 
 
-
 class Basic_config(  
     DataConfig,
-    DataStoreManager,
-    Runtime_func,
-    device_set
+    DataStoreManager
     ):
 
     def __init__(self):
         super().__init__()
         self.device_count = self.count_device()
         self.device = self.device_type_check()
-        self.logger = custom_logger()
 
 
-    @classmethod
-    def get_inherited_class(cls,class_name) -> list:
+    def get_inherited_class(self,class_name) -> list:
+        """
+        Returns a list of inherited classes.
+        """
         inherited_class = inspect.getmro(class_name)
         return [cls_method.__name__ for cls_method in inherited_class]
 
@@ -96,7 +103,7 @@ class Basic_config(
         Returns the first element of the dictionary
         """
         return next(iter(dict_obj.items()))[1]
-
+    
 
     def pipe_class_type(
             self,
@@ -135,14 +142,14 @@ class Basic_config(
         torch_list=["DiffusionPipeline",
                     "AutoPipelineForText2Image",
                     "AutoPipelineForImage2Image",
-                    "AutoPipelineForInpainting",]
+                    "AutoPipelineForInpainting",
+                    ]
 
         flax_list = ["FlaxDiffusionPipeline",]
 
-        if isinstance(Target_class,str):
-            Target_class = getattr(diffusers, Target_class)
+        _class = self.import_pipeline(class_name=Target_class)
 
-        cls_method= self.get_inherited_class(Target_class)
+        cls_method= self.get_inherited_class(_class)
 
         if any(method in torch_list for method in cls_method):
             class_type= "torch"
@@ -151,30 +158,69 @@ class Basic_config(
         else:
             class_type= "onnx"
         return class_type
+    
 
-
-    def get_call_method(
+    def import_pipeline(
             self,
             class_name,
+            skip_error: bool = False
+            ):
+        """
+        Import a pipeline class from the `pipelines` module.
+        Args:
+            class_name: The name of the pipeline class to import.
+            skip_error: Whether to skip errors if the pipeline class is not found.
+        Returns:
+            The imported pipeline class.
+        """
+        if isinstance(class_name,str):
+            try:
+                return getattr(pipelines, class_name)
+            except Exception as err:
+                if skip_error:
+                    return None
+                else:
+                    error_txt = self.find_closest_match(
+                        search_word = class_name,
+                        search_list = dir(pipelines)
+                        )
+                    raise Exception(f"{class_name} not found. Maybe, {error_txt}?") from err
+        else:
+            return class_name
+        
+
+    def get_func_method(
+            self,
+            target_class,
             method_name : str = '__call__'
             ) ->list:
         """
-        Acquire the arguments of the function specified by 'method_name'
-        for the class specified by 'class_name'
+        Returns the arguments of a function in a class
+        Args:
+            target_class: The class containing the method.
+            method_name: The name of the method to get the arguments for.
+        Returns:
+            A list of the argument names for the method.
         """
-        if isinstance(class_name,str):
-            class_name = getattr(getattr(diffusers, class_name),method_name)
-        parameters = inspect.signature(class_name).parameters
+        func_name = getattr(target_class, method_name)
+        parameters = inspect.signature(func_name).parameters
         arg_names = []
         for param in parameters.values():
             arg_names.append(param.name)
         return arg_names
 
 
-    def get_class_elements(
+    def get_class_attributes(
             self,
             search
-            ):
+            ) -> list:
+        """
+        Get the names of the attributes defined in a class.
+        Args:
+            search: The class to search for attributes.
+        Returns:
+            A list of the names of the attributes defined in the class.
+        """
         return list(search.__class__.__annotations__.keys())
 
 
@@ -189,32 +235,36 @@ class Basic_config(
             return False
 
 
-    def import_on_str(
+    def find_closest_match(
             self,
-            desired_function_or_class,
-            module_name = ""
-            ):
-        if not module_name:
-            import_object = __import__(desired_function_or_class)
-        else:
-            import_object = getattr(__import__(module_name), desired_function_or_class)
-        return import_object
+            search_word: str,
+            search_list: list
+            ) -> str:
+        """
+        Find the closest match(es) for a given search word in a list of words.
+        Args:
+            search_word: The word to search for.
+            search_list: The list of words to search in.
+        Returns:
+            A list of the closest matches for the search word.
+        """
+        return difflib.get_close_matches(search_word, search_list, cutoff=0, n=1)
 
-
-    def max_temper(
+    
+    def filter_list_by_text(
             self,
-            search_word,
-            search_list
-            ):
-        return difflib.get_close_matches(search_word, search_list,cutoff=0, n=1)
-
-
-    def sort_list_obj(
-            self,
-            list_obj,
-            need_txt
-            ):
-        sorted_list=[]
+            list_obj: list,
+            need_txt: str
+            ) -> list:
+        """
+        Filter a list of objects based on a text string.
+        Args:
+            list_obj: The list of objects to filter.
+            need_txt: The text string to search for.
+        Returns:
+            A new list containing only the objects that contain the text string.
+            """
+        sorted_list = []
         for module_obj in list_obj:
             if need_txt.lower() in module_obj.lower():
                 sorted_list.append(module_obj)
@@ -226,7 +276,28 @@ class Basic_config(
         Returns:
         Sorted by version in order of newest to oldest
         """
-        return natsorted(sorted_list,reverse = True)
+        return natsorted(sorted_list, reverse = True)
     
+    
+    def get_pipeline_output_keys(class_obj) -> list:
+        """
+        Returns a list of keys of the data class of the pipeline return value.
+        
+        Args:
+        class_obj: The pipeline class object.
 
-
+        Returns:
+        A list of keys of the data class of the pipeline return value.
+        
+        """
+        output_class_keys = []
+        module_name = class_obj.__module__
+        output_class_name = class_obj.__name__ + "Output"
+        module = importlib.import_module(module_name)
+        if hasattr(module, output_class_name):
+            output_class = getattr(module, output_class_name)
+            if is_dataclass(output_class):
+                output_class_keys = list(output_class.__dataclass_fields__.keys())
+        return output_class_keys
+    
+    

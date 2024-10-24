@@ -5,12 +5,14 @@ from tqdm.auto import tqdm
 
 from .....loaders.single_file_utils import is_valid_url
 
-from ..search_utils.base_config import Basic_config
 
+from ..search_utils.base_config import Basic_config
+from ..search_utils.config_class import ModelData
+    
 
 class Civitai(Basic_config):
     '''
-    Example:
+    Map:
     item = requests.get("http://civitai.example").json
     state_list = [{
         "repo_name": item["name"],
@@ -29,6 +31,7 @@ class Civitai(Basic_config):
             }]
         }]
     }]
+
     return:
         state_list = {
             "repo_name": item["name"],
@@ -46,6 +49,16 @@ class Civitai(Basic_config):
 
     def __init__(self):
         super().__init__()
+
+    
+    def __call__(self, *args: os.Any, **kwds: os.Any) -> os.Any:
+        return self.model_data(*args, **kwds)
+    
+
+    def run_civitai_search(self):
+        return ModelData()
+    
+    
     
 
     def civitai_model_set(
@@ -84,41 +97,63 @@ class Civitai(Basic_config):
         ---
         """
 
-        model_state_list = self.requests_civitai(
+        state = self.requests_civitai(
             query=search_word,
             auto=auto,
             model_type=model_type,
             civitai_token=civitai_token,
             include_hugface=include_hugface
             )
-        
-        if not model_state_list:
+        if not state:
             if skip_error:
-                return ""
+                return None
             else:
                 raise ValueError("No models were found in civitai.")
-            
-        model_url,model_save_path = model_state_list
-        if download:    
+
+        dict_of_civitai_repo = self.repo_select_civitai(
+            state = state,
+            auto = auto,
+            include_hugface=include_hugface
+            )
+        
+        if not dict_of_civitai_repo:
+            return None
+        
+        files_list = self.version_select_civitai(
+            state = dict_of_civitai_repo,
+            auto = auto
+            )
+
+        file_status_dict = self.file_select_civitai(
+            state_list = files_list,
+            auto = auto
+            )
+        model_download_url = file_status_dict["download_url"]
+        self.model_data["repo_status"]["repo_name"] = dict_of_civitai_repo["repo_name"]
+        self.model_data["repo_status"]["repo_id"] = dict_of_civitai_repo["repo_id"]
+        self.model_data["repo_status"]["version_id"] = files_list["id"]
+        self.model_data["model_status"]["download_url"] = model_download_url
+        self.model_data["model_status"]["filename"] = file_status_dict["filename"]
+        self.model_data["model_status"]["file_id"] = file_status_dict["file_id"]
+        self.model_data["model_status"]["fp"] = file_status_dict["fp"]
+        self.model_data["model_status"]["file_format"] = file_status_dict["file_format"]
+        self.model_data["model_status"]["filename"] = file_status_dict["filename"]
+        self.model_data["model_status"]["single_file"] = True
+        if download:
+            model_save_path = self.civitai_save_path()
+            self.model_data["model_path"] = model_save_path
+            self.model_data["load_type"] = "from_single_file"
             self.download_model(
-                url=model_url,
+                url=model_download_url,
                 save_path=model_save_path,
                 civitai_token=civitai_token
                 )
-            model_path = model_save_path
         else:
-            model_path = model_url
-        
-        self.model_data["model_status"]["single_file"] = True
-        if download:
-            self.model_data["load_type"] = "from_single_file"
-        else:
+            self.model_data["model_path"] = self.model_data["model_status"]["download_url"]
             self.model_data["load_type"] = ""
- 
-        self.model_data["model_path"] = model_path
-        return model_path
+        return self.model_data
     
-
+    
     def civitai_security_check(self,value) -> int:
         """
         Return:
@@ -234,37 +269,9 @@ class Civitai(Basic_config):
 
                 if model_ver_list:
                     state.append(state_dict)
+        return state
 
-        if not state:
-            self.logger.warning("There is no model in Civitai that fits the criteria.")
-            return {}
-
-        dict_of_civitai_repo = self.repo_select_civitai(
-            state = state,
-            auto = auto,
-            include_hugface=include_hugface
-            )
         
-        if not dict_of_civitai_repo:
-            return []            
-        
-        files_list = self.version_select_civitai(
-            state = dict_of_civitai_repo,
-            auto = auto
-            )
-        
-
-        file_status_dict = self.file_select_civitai(
-            state_list = files_list,
-            auto = auto
-            )
-        self.model_data["repo_status"]["repo_name"] = dict_of_civitai_repo["repo_name"]
-        self.model_data["repo_status"]["repo_id"] = dict_of_civitai_repo["repo_id"]
-        self.model_data["repo_status"]["version_id"] = files_list["id"]
-        self.model_data["model_status"].update(file_status_dict)
-
-        save_path = self.civitai_save_path()
-        return [file_status_dict["download_url"],save_path] 
 
 
     def repo_select_civitai(
@@ -272,7 +279,8 @@ class Civitai(Basic_config):
             state: list, 
             auto: bool, 
             recursive: bool = True,
-            include_hugface: bool = True):
+            include_hugface: bool = True
+            ):
         """
         Set repository requests for Civitai.
 
@@ -409,7 +417,6 @@ class Civitai(Basic_config):
                 max_number += 1
                 print(f"\033[34m{max_number}. Other than above\033[0m")
 
-
             while True:
                 try:
                     choice = int(input("Select the model path to use: "))
@@ -469,17 +476,15 @@ class Civitai(Basic_config):
                         )
                 elif 1 <= choice <= len(state_list):
                     file_dict = state_list[choice - 1]
-                    self.model_data["model_status"].update(file_dict)
                     return file_dict
                 else:
                     print(f"\033[33mPlease enter the numbers 1~{len(state_list)}\033[0m")
         else:
             file_dict = state_list[0]
-            self.model_data["model_status"].update(file_dict)
             return state_list[0]
 
 
-    def civitai_save_path(self):
+    def civitai_save_path(self) -> os.PathLike:
         """
         Set the save path using the information in path_dict.
 
@@ -490,5 +495,4 @@ class Civitai(Basic_config):
         file_version_dir = str(self.model_data["repo_status"]["version_id"])
         save_file_name = str(self.model_data["model_status"]["filename"])
         save_path = os.path.join(self.base_civitai_dir, repo_level_dir, file_version_dir, save_file_name)
-        self.model_data["model_path"] = save_path
         return save_path
