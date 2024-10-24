@@ -3,11 +3,13 @@ import os
 from .....loaders.single_file_utils import is_valid_url
 
 from .mix_class import Config_Mix
+from ..search_utils.config_class import ModelData
 
 
 class Search_cls(Config_Mix):
     def __init__(self):
         super().__init__()
+    
 
 
     def __call__(
@@ -49,7 +51,10 @@ class Search_cls(Config_Mix):
                   civitai_token = civitai_token,
                   include_params = include_params
                   )
-        return result
+        if include_params:
+            return ModelData(**self.model_data)
+        else:
+            return result
         
 
     def File_search(
@@ -60,34 +65,53 @@ class Search_cls(Config_Mix):
         """
         only single file
         """
-        search_path=""
-        paths = []
+        closest_match = None
+        closest_distance = float('inf')
         for root, dirs, files in os.walk("/"):
             for file in files:
                 if any(file.endswith(ext) for ext in self.exts):
                     path = os.path.join(root, file)
                     if path not in self.exclude:
-                        if not path.startswith("/root/.cache"):
-                            paths.append(path)
-        num_path=len(paths)
-        if not num_path:
-            raise FileNotFoundError("\033[33mModel File not found\033[0m")
-        elif not auto:
-            print(f"{num_path} candidate model files found.")
-            for s, path in enumerate(paths, 1):
-                print(f"{s}: {path}")
-            num = int(input(f"Please enter a number(1〜{num_path}): "))
-            if 1 <= num <= len(paths):
-                search_path=(paths[num-1])
-                print(f"Selected model file: {search_path}\n")
-            else:
-                raise TypeError(f"\033[33mOnly natural numbers in the following range are valid : (1〜{len(paths)})\033[0m")
+                        yield path
+                        if auto:
+                            distance = self.calculate_distance(search_word, file)
+                            if distance < closest_distance:
+                                closest_distance = distance
+                                closest_match = path
+        if auto:
+            return closest_match
         else:
-            search_path = self.find_closest_match(
-                search_word = search_word,
-                search_list = paths
-                )
-        return search_path
+            return self.user_select_file(search_word)
+    
+
+    def user_select_file(self, search_word):
+        """
+        Allow user to select a file from the search results.
+        """
+        search_results = list(self.File_search(search_word, auto=False))
+        if not search_results:
+            raise FileNotFoundError("\033[33mModel File not found\033[0m")
+        
+        print("\n\n\033[34mThe following model files were found\033[0m")
+        for i, path in enumerate(search_results, 1):
+            print(f"\033[34m{i}. {path}\033[0m")
+        
+        while True:
+            try:
+                choice = int(input(f"Select the file to use [1-{len(search_results)}]: "))
+                if 1 <= choice <= len(search_results):
+                    return search_results[choice - 1]
+                else:
+                    print(f"\033[33mPlease enter a number between 1 and {len(search_results)}\033[0m")
+            except ValueError:
+                print("\033[33mOnly natural numbers are valid.\033[0m")
+    
+
+    def calculate_distance(self, search_word, file_name):
+        """
+        Calculate the distance between the search word and the file name.
+        """
+        return sum(1 for a, b in zip(search_word, file_name) if a != b)
     
 
     def hf_model_set(
@@ -106,7 +130,6 @@ class Search_cls(Config_Mix):
             model_format=model_format,
             include_civitai=include_civitai
             )
-        #hf->civit
         if not model_name == "_hf_no_model":
             file_path = self.file_name_set(
                 model_select=model_name,
@@ -180,10 +203,10 @@ class Search_cls(Config_Mix):
                 self.model_data["model_path"] = _check_url
 
         if local_file_only:
-            model_path = self.File_search(
+            model_path = next(self.File_search(
                 search_word = model_select,
                 auto = auto
-                )
+                ))
             self.model_data["model_status"]["single_file"] = True
             self.model_data["model_path"] = model_path
             self.model_data["load_type"] = "from_single_file"
@@ -326,6 +349,6 @@ class Search_cls(Config_Mix):
             value = model_path
             )       
         if include_params:
-            return self.model_data
+            yield self.model_data
         else:
-            return model_path
+            yield model_path
