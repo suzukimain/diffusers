@@ -5,10 +5,14 @@ import importlib
 import difflib
 from dataclasses import is_dataclass
 
-from natsort import natsorted
+from ..... import pipelines
+from .....utils.import_utils import is_natsort_available
+from .model_search_data_classes import DataConfig
 
-from ..... import pipelines 
-from .config_class import DataConfig
+
+if is_natsort_available():
+    from natsort import natsorted
+
 
 TASK_KEY_MAPPING = {
     "txt2img" : ["images"],
@@ -79,7 +83,7 @@ class DataStoreManager:
             json.dump(basic_json_dict, json_file, indent=4)
 
 
-class Basic_config(  
+class SearchPipelineConfig(  
     DataConfig,
     DataStoreManager
     ):
@@ -105,7 +109,22 @@ class Basic_config(
         return next(iter(dict_obj.items()))[1]
     
 
-    def pipe_class_type(
+    def pipe_class_type(self,class_name,skip_error=False):
+        class_output_list = self.get_pipeline_output_keys(class_name)
+        for key,value in TASK_KEY_MAPPING:
+            if key in class_output_list:
+                return value
+        else:
+            if skip_error:
+                return None
+            else:
+                raise ValueError(f"{class_name.__name__} is not supported")
+                
+
+
+
+
+    def old_pipe_class_type(
             self,
             class_name
             ):
@@ -276,7 +295,7 @@ class Basic_config(
         Returns:
         Sorted by version in order of newest to oldest
         """
-        return natsorted(sorted_list, reverse = True)
+        return natsorted(sorted_list, reverse = True) if is_natsort_available() else sorted(sorted_list, reverse=True)
     
     
     def get_pipeline_output_keys(class_obj) -> list:
@@ -290,14 +309,11 @@ class Basic_config(
         A list of keys of the data class of the pipeline return value.
         
         """
-        output_class_keys = []
         module_name = class_obj.__module__
         output_class_name = class_obj.__name__ + "Output"
         module = importlib.import_module(module_name)
         if hasattr(module, output_class_name):
             output_class = getattr(module, output_class_name)
             if is_dataclass(output_class):
-                output_class_keys = list(output_class.__dataclass_fields__.keys())
-        return output_class_keys
-    
-    
+                return list(output_class.__dataclass_fields__.keys())
+        return []

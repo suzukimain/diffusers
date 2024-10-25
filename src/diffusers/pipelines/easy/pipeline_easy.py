@@ -6,8 +6,6 @@ from dataclasses import dataclass
 import diffusers
 
 
-
-
 from ..pipeline_utils import DiffusionPipeline
 
 from ...pipelines import (
@@ -107,12 +105,7 @@ from ...utils import (
 from ...utils.torch_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
 
-
-
-
-
-from model_path.perform_path_search import Search_cls
-from model_path.mix_class import Basic_config
+from model_search import ModelSearchPipeline
 
 
 @dataclass
@@ -139,7 +132,7 @@ class AutoPipe_data:
 
 
 
-class AutoPipeline(Search_cls,Basic_config):
+class EasyPipeline(ModelSearchPipeline):
     def __init__(
             self,
             search_word: str,

@@ -1,13 +1,12 @@
-from .search_hugface import HFSearch
-from .search_civitai import CivitaiSearch
-from ..search_utils.base_config import Basic_config
-
+from .pipeline_search_for_HuggingFace import HFSearchPipeline
+from .pipeline_search_for_Civitai import CivitaiSearchPipeline
+from .pipeline_search_for_hub import ModelSearchPipeline
 
 class Config_Mix(
-    HFSearch,
-    CivitaiSearch,
-    Basic_config
+    HFSearchPipeline,
+    CivitaiSearchPipeline,
+    ModelSearchPipeline
     ):
-    #fix MMO error
+    # Resolve multiple inheritance order (MRO) error
     def __init__(self):
         super().__init__()

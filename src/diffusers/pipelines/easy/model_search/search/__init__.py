@@ -1,3 +1,4 @@
-from .perform_path_search import ModelSearch
-from .search_civitai import CivitaiSearch
-from .search_hugface import HFSearch
+from .pipeline_search_for_HuggingFace import HFSearchPipeline
+from .pipeline_search_for_Civitai import CivitaiSearchPipeline
+from .pipeline_search_for_hub import ModelSearchPipeline
+from .mix_class import Config_Mix

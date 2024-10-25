@@ -4,11 +4,11 @@ from requests import HTTPError
 from tqdm.auto import tqdm
 
 from .....loaders.single_file_utils import is_valid_url
-from ..search_utils.base_config import Basic_config
-from ..search_utils.config_class import ModelData
+from ..search_utils.search_pipeline_utils import SearchPipelineConfig
+from ..search_utils.model_search_data_classes import ModelData
 
 
-class CivitaiSearch(Basic_config):
+class CivitaiSearchPipeline(SearchPipelineConfig):
     """
     The Civitai class is used to search and download models from Civitai.
 
@@ -33,10 +33,11 @@ class CivitaiSearch(Basic_config):
 
     base_civitai_dir = "/root/.cache/Civitai"
     max_number_of_choices: int = 15
-    chunk_size: int = 1024
+    chunk_size: int = 8192
 
     def __init__(self):
         super().__init__()
+
 
     def __call__(self, *args: os.Any, **kwds: os.Any) -> os.Any:
         return self.model_data(*args, **kwds)
@@ -121,6 +122,7 @@ class CivitaiSearch(Basic_config):
         else:
             return self.model_data["model_path"]
 
+
     def civitai_security_check(self, value) -> int:
         """
         Performs a security check.
@@ -143,6 +145,7 @@ class CivitaiSearch(Basic_config):
             return 2
         else:
             return 1
+
 
     def requests_civitai(
         self, query, auto, model_type, civitai_token=None, include_hugface=True
@@ -231,6 +234,7 @@ class CivitaiSearch(Basic_config):
                     state.append(state_dict)
         return state
 
+
     def repo_select_civitai(
         self, state: list, auto: bool, recursive: bool = True, include_hugface: bool = True
     ):
@@ -299,6 +303,7 @@ class CivitaiSearch(Basic_config):
                 else:
                     print(f"\033[33mPlease enter the numbers 1~{max_number}\033[0m")
 
+
     def download_model(self, url, save_path, civitai_token=None):
         """
         Downloads a model.
@@ -330,9 +335,10 @@ class CivitaiSearch(Basic_config):
             desc="Downloading model",
             total=int(response.headers.get("content-length", 0)),
         ) as fout:
-            for chunk in response.iter_content(chunk_size=8192):
+            for chunk in response.iter_content(chunk_size=self.chunk_size):
                 fout.write(chunk)
         self.logger.info(f"Downloaded file saved to {save_path}")
+
 
     def version_select_civitai(self, state, auto, recursive: bool = True):
         """
@@ -401,6 +407,7 @@ class CivitaiSearch(Basic_config):
                 else:
                     print(f"\033[33mPlease enter the numbers 1~{max_number}\033[0m")
 
+
     def file_select_civitai(self, state_list, auto, recursive: bool = True):
         """
         Selects a file to download.
@@ -448,6 +455,7 @@ class CivitaiSearch(Basic_config):
         else:
             file_dict = state_list[0]
             return file_dict
+
 
     def civitai_save_path(self) -> os.PathLike:
         """
