@@ -324,6 +324,12 @@ else:
         "WuerstchenDecoderPipeline",
         "WuerstchenPriorPipeline",
     ]
+    
+    _import_structure["easy"] = [
+        "HFSearchPipeline",
+        "CivitaiSearchPipeline",
+        "ModelSearchPipeline",
+    ]
 try:
     if not is_onnx_available():
         raise OptionalDependencyNotAvailable()
@@ -645,6 +651,11 @@ if TYPE_CHECKING or DIFFUSERS_SLOW_IMPORT:
             WuerstchenDecoderPipeline,
             WuerstchenPriorPipeline,
         )
+        from .easy import (
+            HFSearchPipeline,
+            CivitaiSearchPipeline,
+            ModelSearchPipeline,
+        )
 
         try:
             if not is_onnx_available():
@@ -738,3 +749,5 @@ else:
     )
     for name, value in _dummy_objects.items():
         setattr(sys.modules[__name__], name, value)
+
+    from .easy import HFSearchPipeline, CivitaiSearchPipeline, ModelSearchPipeline
