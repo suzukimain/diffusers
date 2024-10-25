@@ -1,4 +1,4 @@
-from model_search import (
+from .model_search import (
     HFSearchPipeline,
     CivitaiSearchPipeline,
     ModelSearchPipeline,
