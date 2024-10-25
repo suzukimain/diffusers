@@ -340,6 +340,16 @@ if _imageio_available:
         _imageio_available = False
 
 
+_natsort_available = importlib.util.find_spec("natsort") is not None
+if _natsort_available:
+    try:
+        _natsort_version = importlib_metadata.version("natsort")
+        logger.debug(f"Successfully imported natsort version {_natsort_version}")
+
+    except importlib_metadata.PackageNotFoundError:
+        _natsort_available = False
+
+
 def is_torch_available():
     return _torch_available
 
@@ -458,6 +468,10 @@ def is_sentencepiece_available():
 
 def is_imageio_available():
     return _imageio_available
+
+
+def is_natsort_available():
+    return _natsort_available
 
 
 # docstyle-ignore
@@ -593,6 +607,13 @@ IMAGEIO_IMPORT_ERROR = """
 {0} requires the imageio library and ffmpeg but it was not found in your environment. You can install it with pip: `pip install imageio imageio-ffmpeg`
 """
 
+
+# docstyle-ignore
+NATSORT_IMPORT_ERROR = """
+{0} requires the natsort library and ffmpeg but it was not found in your environment. You can install it with pip: `pip install natsort`
+"""
+
+
 BACKENDS_MAPPING = OrderedDict(
     [
         ("bs4", (is_bs4_available, BS4_IMPORT_ERROR)),
@@ -618,6 +639,7 @@ BACKENDS_MAPPING = OrderedDict(
         ("bitsandbytes", (is_bitsandbytes_available, BITSANDBYTES_IMPORT_ERROR)),
         ("sentencepiece", (is_sentencepiece_available, SENTENCEPIECE_IMPORT_ERROR)),
         ("imageio", (is_imageio_available, IMAGEIO_IMPORT_ERROR)),
+        ("natsort", (is_natsort_available, NATSORT_IMPORT_ERROR)),
     ]
 )
 
@@ -758,6 +780,7 @@ def is_k_diffusion_version(operation: str, version: str):
     if not _k_diffusion_available:
         return False
     return compare_versions(parse(_k_diffusion_version), operation, version)
+
 
 
 def get_objects_from_module(module):
