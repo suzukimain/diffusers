@@ -517,6 +517,11 @@ if TYPE_CHECKING or DIFFUSERS_SLOW_IMPORT:
             VersatileDiffusionTextToImagePipeline,
             VQDiffusionPipeline,
         )
+        from .easy import(
+            HFSearchPipeline,
+            CivitaiSearchPipeline,
+            ModelSearchPipeline,
+        )
         from .flux import (
             FluxControlNetImg2ImgPipeline,
             FluxControlNetInpaintPipeline,
