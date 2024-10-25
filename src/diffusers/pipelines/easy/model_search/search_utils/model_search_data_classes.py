@@ -1,13 +1,10 @@
 from dataclasses import dataclass
 
 
-@dataclass
 class DataConfig:
     Config_file: str = "model_index.json"
     exts: list =  [".safetensors", ".ckpt",".bin"]
-    single_file_only: bool
-    hf_token: str = None
-    force_download: bool = False
+
     model_dict: dict = {
         "StableDiffusion" : "stabilityai/stable-diffusion-2-1",
         "waifu diffusion": "hakurei/waifu-diffusion",
@@ -92,10 +89,10 @@ class DataConfig:
         ]
     
     def __init__(self):
-        self.single_file_only = False
-        self.hf_token = None
-        self.force_download = False
-
+        self.single_file_only: bool  = False
+        self.hf_token: str = None
+        self.force_download: bool = False
+        
 
 @dataclass
 class RepoStatus:
