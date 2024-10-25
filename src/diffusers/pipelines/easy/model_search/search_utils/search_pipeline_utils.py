@@ -121,9 +121,6 @@ class SearchPipelineConfig(
                 raise ValueError(f"{class_name.__name__} is not supported")
                 
 
-
-
-
     def old_pipe_class_type(
             self,
             class_name

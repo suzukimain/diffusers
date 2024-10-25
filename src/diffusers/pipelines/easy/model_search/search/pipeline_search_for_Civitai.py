@@ -39,8 +39,8 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
         super().__init__()
 
 
-    def __call__(self, *args: os.Any, **kwds: os.Any) -> os.Any:
-        return self.model_data(*args, **kwds)
+    def __call__(self,**keywords):
+        return self.civitai_model_set(**keywords)
 
 
     def civitai_model_set(

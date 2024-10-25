@@ -1,4 +1,3 @@
-import os
 import re
 import requests
 from requests import HTTPError
@@ -81,8 +80,58 @@ class HFSearchPipeline(SearchPipelineConfig):
         self.hf_api = HfApi()
 
 
-    def __call__(self, *args: os.Any, **kwds: os.Any) -> os.Any:
-        return self.model_data(*args, **kwds)
+    def __call__(self, **keywords):
+        return self.hf_model_set(**keywords)
+    
+
+    def hf_model_set(
+            self,
+            model_select,
+            auto,
+            model_format,
+            model_type,
+            download,
+            include_civitai=True
+            ):
+        model_path = ""
+        model_name = self.model_name_search(
+            model_name=model_select,
+            auto_set=auto,
+            model_format=model_format,
+            include_civitai=include_civitai
+            )
+        if not model_name == "_hf_no_model":
+            file_path = self.file_name_set(
+                model_select=model_name,
+                auto=auto,
+                model_format=model_format,
+                model_type=model_type
+                )
+            if file_path == "_DFmodel":
+                if download:
+                    model_path = self.run_hf_download(
+                        model_name,
+                        branch=self.branch
+                        )
+                else:
+                    model_path = model_name
+                self.model_data["model_path"] = model_path
+                self.model_data["model_status"]["single_file"] = False
+                self.model_data["load_type"] = "from_pretrained"
+
+            else:
+                hf_model_path = f"https://huggingface.co/{model_name}/blob/{self.branch}/{file_path}"
+                if download:
+                    model_path = self.run_hf_download(hf_model_path)
+                else:
+                    model_path = hf_model_path
+                self.model_data["model_status"]["single_file"] = True
+                self.model_data["load_type"] = "from_single_file"
+                self.model_data["model_status"]["filename"] = file_path
+
+            return model_path
+        else:
+            return "_hf_no_model"
 
 
     def repo_name_or_path(self, model_name_or_path):
