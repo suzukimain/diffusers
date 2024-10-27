@@ -16,6 +16,7 @@ class DataConfig:
     """
     Config_file: str = "model_index.json"
     exts: list =  [".safetensors", ".ckpt",".bin"]
+    model_data: dict = {}
 
     model_dict: dict = {
         "sd" : "stabilityai/stable-diffusion-2-1",
@@ -104,6 +105,24 @@ class DataConfig:
         self.single_file_only: bool  = False
         self.hf_token: str = None
         self.force_download: bool = False
+        self.model_data = {
+            "model_path" : "",
+            "load_type" : "",
+            "repo_status":{
+                "repo_name":"",
+                "repo_id":"",
+                "version_id":""
+                },
+            "model_status":{
+                "search_word" : "",
+                "download_url": "",
+                "filename":"",
+                "file_id": "",
+                "fp": "",
+                "local" : False,
+                "single_file" : False
+                },
+            }
         
 
 @dataclass
