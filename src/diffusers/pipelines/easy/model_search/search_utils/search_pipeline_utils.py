@@ -118,8 +118,7 @@ class SearchPipelineConfig(DataConfig, DataStoreManager):
 
     def __init__(self):
         super().__init__()
-        self.device_count = self.count_device()
-        self.device = self.device_type_check()
+
 
     def get_inherited_class(self, class_name) -> list:
         """
