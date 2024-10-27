@@ -39,9 +39,39 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
         super().__init__()
 
 
-    def __call__(self,**keywords):
-        return self.civitai_model_set(**keywords)
+    def __call__(
+            self,
+            search_word,
+            auto=True,
+            model_type="Checkpoint",
+            download=True,
+            civitai_token=None,
+            include_params=False,
+        ):
+        """
+        Downloads a model from Civitai.
 
+        Parameters:
+        - search_word (str): Search query string.
+        - auto (bool): Auto-select flag.
+        - model_type (str): Type of model to search for. One of the following ["Checkpoint"],["TextualInversion"],["Hypernetwork"],["AestheticGradient"],["LORA"],["Controlnet"],["Poses"]
+        - download (bool): Whether to download the model.
+        - include_params (bool): Whether to include parameters in the returned data.
+
+        Returns:
+        - ModelData: Model data if include_params is True, otherwise model path.
+        """
+        return self.civitai_model_set(
+            search_word=search_word,
+            auto=auto,
+            model_type=model_type,
+            download=download,
+            civitai_token=civitai_token,
+            include_params=include_params,
+            skip_error=False,
+            include_hugface=False
+            )
+ 
 
     def civitai_model_set(
         self,
@@ -112,9 +142,7 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
                 civitai_token=civitai_token,
             )
         else:
-            self.model_data["model_path"] = self.model_data["model_status"][
-                "download_url"
-            ]
+            self.model_data["model_path"] = self.model_data["model_status"]["download_url"]
             self.model_data["load_type"] = ""
         
         if include_params:
