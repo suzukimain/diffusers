@@ -39,39 +39,8 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
         super().__init__()
 
 
-    def __call__(
-        self,
-        search_word,
-        auto,
-        model_type,
-        download=True,
-        civitai_token=None,
-        skip_error=True,
-        include_params=False,
-    ):
-        """
-        Downloads a model from Civitai.
-
-        Parameters:
-        - search_word (str): Search query string.
-        - auto (bool): Auto-select flag.
-        - model_type (str): Type of model to search for.
-        - download (bool): Whether to download the model.
-        - include_params (bool): Whether to include parameters in the returned data.
-
-        Returns:
-        - ModelData: Model data if include_params is True, otherwise model path.
-        """
-        return self.civitai_model_set(
-            search_word=search_word,
-            auto=auto,
-            model_type=model_type,
-            download=download,
-            civitai_token=civitai_token,
-            skip_error=skip_error,
-            include_params=include_params,
-            include_hugface=False
-        )
+    def __call__(self,**keywords):
+        return self.civitai_model_set(**keywords)
 
 
     def civitai_model_set(
@@ -82,8 +51,8 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
         download=True,
         civitai_token=None,
         skip_error=True,
+        include_hugface=True,
         include_params=False,
-        include_hugface=True
     ):
         """
         Downloads a model from Civitai.
