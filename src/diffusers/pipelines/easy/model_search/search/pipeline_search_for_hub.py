@@ -26,11 +26,6 @@ class ModelSearchPipeline(Config_Mix):
             include_params = False,
             ):
 
-        self.download = download
-        self.model_type = model_type
-        self.branch = branch
-        self.local_file_only=local_file_only
-        self.model_format = model_format
         self.single_file_only = True if "single_file" == model_format else False
 
         self.model_data["model_status"]["search_word"] = seach_word
@@ -39,17 +34,17 @@ class ModelSearchPipeline(Config_Mix):
         self.hf_login(hf_token)
 
         result = self.model_set(
-                  model_select = seach_word,
-                  auto = auto,
-                  download = download,
-                  model_format = model_format,
-                  model_type = model_type,
-                  branch = branch,
-                  priority_hub = priority_hub,
-                  local_file_only = local_file_only,
-                  civitai_token = civitai_token,
-                  include_params = include_params
-                  )
+            model_select = seach_word,
+            auto = auto,
+            download = download,
+            model_format = model_format,
+            model_type = model_type,
+            branch = branch,
+            priority_hub = priority_hub,
+            local_file_only = local_file_only,
+            civitai_token = civitai_token,
+            include_params = include_params
+        )
         if include_params:
             return ModelData(**self.model_data)
         else:

@@ -1,5 +1,5 @@
 from .pipeline_search_for_HuggingFace import HFSearchPipeline
-from .pipeline_search_for_Civitai import CivitaiSearchPipeline
+from .pipeline_search_for_civitai import CivitaiSearchPipeline
 
 class Config_Mix(
     HFSearchPipeline,

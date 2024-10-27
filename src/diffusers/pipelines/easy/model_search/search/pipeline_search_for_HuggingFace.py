@@ -93,6 +93,7 @@ class HFSearchPipeline(SearchPipelineConfig):
             download,
             include_civitai=True
             ):
+        
         model_path = ""
         model_name = self.model_name_search(
             model_name=model_select,

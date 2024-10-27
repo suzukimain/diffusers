@@ -2,12 +2,24 @@ from dataclasses import dataclass
 
 
 class DataConfig:
+    """
+    Configuration class for data handling in the model search pipeline.
+
+    Attributes:
+        Config_file (str): The name of the configuration file.
+        exts (list): List of supported file extensions.
+        model_dict (dict): Dictionary mapping model names to their corresponding paths.
+        exclude (list): List of files to exclude from the search.
+        Auto_pipe_class (list): List of auto pipeline classes.
+        Error_M1 (str): Error message for invalid URL format.
+        config_file_list (list): List of configuration files.
+    """
     Config_file: str = "model_index.json"
     exts: list =  [".safetensors", ".ckpt",".bin"]
 
     model_dict: dict = {
-        "StableDiffusion" : "stabilityai/stable-diffusion-2-1",
-        "waifu diffusion": "hakurei/waifu-diffusion",
+        "sd" : "stabilityai/stable-diffusion-2-1",
+        "wd": "hakurei/waifu-diffusion",
         "Anything-v3.0": "Linaqruf/anything-v3.0",
         "anything-midjourney-v-4-1": "Joeythemonster/anything-midjourney-v-4-1",
         "Anything-v4.5": "shibal1/anything-v4.5-clone",
@@ -23,15 +35,15 @@ class DataConfig:
         "chilled_reversemix":"sazyou-roukaku/chilled_reversemix",
         "7th_Layer": "syaimu/7th_test",
         "loli": "JosefJilek/loliDiffusion",
-        "EimisAnimeDiffusion_1.0v": "eimiss/EimisAnimeDiffusion_1.0v",
-        "JWST-Deep-Space-diffusion" : "dallinmackay/JWST-Deep-Space-diffusion",
+        "EimisAnimeDiffusion": "eimiss/EimisAnimeDiffusion_1.0v",
+        "Space-diffusion" : "dallinmackay/JWST-Deep-Space-diffusion",
         "Riga_Collection": "natsusakiyomi/Riga_Collection",
-        "sd-db-epic-space-machine" : "rabidgremlin/sd-db-epic-space-machine",
+        "space-machine" : "rabidgremlin/sd-db-epic-space-machine",
         "spacemidj" : "Falah/spacemidj",
         "anime-kawai-diffusion": "Ojimi/anime-kawai-diffusion",
-        "Realistic_Vision_V2.0": "SG161222/Realistic_Vision_V2.0",
-        "nasa-space-v2" : "sd-dreambooth-library/nasa-space-v2-768",
-        "meinamix_meinaV10": "namvuong96/civit_meinamix_meinaV10",
+        "Realistic_Vision": "SG161222/Realistic_Vision_V2.0",
+        "nasa-space" : "sd-dreambooth-library/nasa-space-v2-768",
+        "meinamix_meina": "namvuong96/civit_meinamix_meinaV10",
         }
     
     exclude: list =  [
@@ -96,6 +108,14 @@ class DataConfig:
 
 @dataclass
 class RepoStatus:
+    """
+    Data class for storing repository status information.
+
+    Attributes:
+        repo_name (str): The name of the repository.
+        repo_id (str): The ID of the repository.
+        version_id (str): The version ID of the repository.
+    """
     repo_name: str = ""
     repo_id: str = ""
     version_id: str = ""
@@ -103,6 +123,18 @@ class RepoStatus:
 
 @dataclass
 class ModelStatus:
+    """
+    Data class for storing model status information.
+
+    Attributes:
+        search_word (str): The search word used to find the model.
+        download_url (str): The URL to download the model.
+        filename (str): The name of the model file.
+        file_id (str): The ID of the model file.
+        fp (str): Floating-point precision formats.
+        local (bool): Whether the model is stored locally.
+        single_file (bool): Whether the model is a single file.
+    """
     search_word: str = ""
     download_url: str = ""
     filename: str = ""
@@ -115,24 +147,13 @@ class ModelStatus:
 @dataclass
 class ModelData:
     """
-    MAP:
-       {"model_path": "",
-        "load_type": "",
-        "repo_status": {
-            "repo_name": "",
-            "repo_id": "",
-            "version_id": ""
-            },
-        "model_status": {
-            "search_word": "",
-            "download_url": "",
-            "filename": "",
-            "file_id": "",
-            "fp": "",
-            "local": False,
-            "single_file": False
-            }
-       }
+    Data class for storing model data.
+
+    Attributes:
+        model_path (str): The path to the model.
+        load_type (str): The type of loading method used for the model.
+        repo_status (RepoStatus): The status of the repository.
+        model_status (ModelStatus): The status of the model.
     """
     model_path: str = ""
     load_type: str = ""  # "" or "from_single_file" or "from_pretrained"
