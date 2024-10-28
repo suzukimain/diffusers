@@ -105,7 +105,7 @@ class DataConfig:
         self.single_file_only: bool  = False
         self.hf_token: str = None
         self.force_download: bool = False
-        self.model_data = {
+        self.model_info = {
             "model_path" : "",
             "load_type" : "",
             "repo_status":{

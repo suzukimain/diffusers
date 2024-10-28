@@ -7,7 +7,12 @@ from dataclasses import is_dataclass
 
 from ..... import pipelines
 from .....utils.import_utils import is_natsort_available
-from .model_search_data_classes import DataConfig
+from .model_search_data_classes import (
+    DataConfig,
+    RepoStatus,
+    ModelStatus,
+    ModelData
+    )
 
 if is_natsort_available():
     from natsort import natsorted
@@ -358,3 +363,12 @@ class SearchPipelineConfig(DataConfig, DataStoreManager):
             if is_dataclass(output_class):
                 return list(output_class.__dataclass_fields__.keys())
         return []
+    
+
+    def SearchPipelineOutput(self,model_info) -> ModelData:
+        return ModelData(
+            model_path=model_info["model_path"],
+            load_type=model_info["load_type"],
+            repo_status=RepoStatus(**model_info["repo_status"]),
+            model_status=ModelStatus(**model_info["model_status"])
+        )

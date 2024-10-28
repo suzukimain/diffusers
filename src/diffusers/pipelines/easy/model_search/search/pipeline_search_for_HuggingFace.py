@@ -122,9 +122,9 @@ class HFSearchPipeline(SearchPipelineConfig):
                         )
                 else:
                     model_path = model_name
-                self.model_data["model_path"] = model_path
-                self.model_data["model_status"]["single_file"] = False
-                self.model_data["load_type"] = "from_pretrained"
+                self.model_info["model_path"] = model_path
+                self.model_info["model_status"]["single_file"] = False
+                self.model_info["load_type"] = "from_pretrained"
 
             else:
                 hf_model_path = f"https://huggingface.co/{model_name}/blob/{self.branch}/{file_path}"
@@ -132,9 +132,9 @@ class HFSearchPipeline(SearchPipelineConfig):
                     model_path = self.run_hf_download(hf_model_path)
                 else:
                     model_path = hf_model_path
-                self.model_data["model_status"]["single_file"] = True
-                self.model_data["load_type"] = "from_single_file"
-                self.model_data["model_status"]["filename"] = file_path
+                self.model_info["model_status"]["single_file"] = True
+                self.model_info["load_type"] = "from_single_file"
+                self.model_info["model_status"]["filename"] = file_path
 
             return model_path
         else:
