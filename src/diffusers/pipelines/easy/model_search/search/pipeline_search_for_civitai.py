@@ -3,9 +3,16 @@ import requests
 from requests import HTTPError
 from tqdm.auto import tqdm
 
+from .....utils import logging
 from .....loaders.single_file_utils import is_valid_url
-from ..search_utils.search_pipeline_utils import SearchPipelineConfig
-from ..search_utils.model_search_data_classes import ModelData
+
+from ..search_utils import (
+    SearchPipelineConfig,
+    ModelData
+    )
+
+
+logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 class CivitaiSearchPipeline(SearchPipelineConfig):
@@ -250,7 +257,7 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
         - dict: Selected repository information.
         """
         if not state:
-            self.logger.warning("No models were found in civitai.")
+            logger.warning("No models were found in civitai.")
             return {}
 
         elif auto:
@@ -337,7 +344,7 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
         ) as fout:
             for chunk in response.iter_content(chunk_size=self.chunk_size):
                 fout.write(chunk)
-        self.logger.info(f"Downloaded file saved to {save_path}")
+        logger.info(f"Downloaded file saved to {save_path}")
 
 
     def version_select_civitai(self, state, auto, recursive: bool = True):

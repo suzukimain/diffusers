@@ -1,9 +1,13 @@
 import os
 
+from .....utils import logging
 from .....loaders.single_file_utils import is_valid_url
 
 from .mix_class import Config_Mix
-from ..search_utils.model_search_data_classes import ModelData
+from ..search_utils import ModelData
+
+
+logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 class ModelSearchPipeline(Config_Mix):
@@ -295,3 +299,57 @@ class ModelSearchPipeline(Config_Mix):
             yield self.model_data
         else:
             yield model_path
+
+    @classmethod
+    def from_hub(cls, model_id, **kwargs):
+        """
+        Load a pipeline from the Hugging Face Hub.
+
+        Args:
+            model_id (str): The model ID on the Hugging Face Hub.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            ModelSearchPipeline: The loaded pipeline.
+        """
+        instance = cls()
+        instance.model_data["model_status"]["search_word"] = model_id
+        instance.model_data["model_status"]["local"] = False
+        instance.model_data["model_path"] = f"https://huggingface.co/{model_id}"
+        return instance
+
+    @classmethod
+    def from_hf(cls, model_id, **kwargs):
+        """
+        Load a pipeline from Hugging Face.
+
+        Args:
+            model_id (str): The model ID on Hugging Face.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            ModelSearchPipeline: The loaded pipeline.
+        """
+        instance = cls()
+        instance.model_data["model_status"]["search_word"] = model_id
+        instance.model_data["model_status"]["local"] = False
+        instance.model_data["model_path"] = f"https://huggingface.co/{model_id}"
+        return instance
+
+    @classmethod
+    def from_civitai(cls, model_id, **kwargs):
+        """
+        Load a pipeline from Civitai.
+
+        Args:
+            model_id (str): The model ID on Civitai.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            ModelSearchPipeline: The loaded pipeline.
+        """
+        instance = cls()
+        instance.model_data["model_status"]["search_word"] = model_id
+        instance.model_data["model_status"]["local"] = False
+        instance.model_data["model_path"] = f"https://civitai.com/models/{model_id}"
+        return instance
