@@ -59,7 +59,7 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
         civitai_token=None,
         skip_error=True,
         include_hugface=True,
-        include_params=False,
+        include_params=False
     ):
         """
         Downloads a model from Civitai.

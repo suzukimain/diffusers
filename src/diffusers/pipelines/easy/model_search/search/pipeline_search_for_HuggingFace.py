@@ -97,7 +97,8 @@ class HFSearchPipeline(SearchPipelineConfig):
             model_format,
             model_type,
             download,
-            include_civitai=True
+            include_civitai=True,
+            include_params=False
             ):
         
         model_path = ""
@@ -136,7 +137,10 @@ class HFSearchPipeline(SearchPipelineConfig):
                 self.model_info["load_type"] = "from_single_file"
                 self.model_info["model_status"]["filename"] = file_path
 
-            return model_path
+            if include_params:
+                return self.SearchPipelineOutput(self.model_info)
+            else:
+                return model_path
         else:
             return "_hf_no_model"
 
