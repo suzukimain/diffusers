@@ -3,7 +3,9 @@ import os
 from .....utils import logging
 from .....loaders.single_file_utils import is_valid_url
 
-from .mix_class import Config_Mix
+
+from .pipeline_search_for_HuggingFace import HFSearchPipeline
+from .pipeline_search_for_civitai import CivitaiSearchPipeline
 from ..search_utils import (
     ModelData,
     RepoStatus,
@@ -14,7 +16,10 @@ from ..search_utils import (
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
-class ModelSearchPipeline(Config_Mix):
+class ModelSearchPipeline(
+    HFSearchPipeline,
+    CivitaiSearchPipeline
+    ):
     def __init__(self):
         super().__init__()
     

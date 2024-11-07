@@ -298,7 +298,9 @@ class HFSearchPipeline(SearchPipelineConfig):
         Returns:
             bool: True if the model exists, False otherwise.
         """
-        return is_valid_url(f"https://huggingface.co/{path}")
+        if not any(path.startswith(prefix) for prefix in VALID_URL_PREFIXES):
+            path = f"https://huggingface.co/{path}"
+        return is_valid_url(path)
 
 
     def model_data_get(self, path: str, model_info=None) -> dict:
