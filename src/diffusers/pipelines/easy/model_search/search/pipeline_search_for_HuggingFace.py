@@ -9,6 +9,8 @@ from huggingface_hub import (
     login
     )
 
+
+from .....utils import logging
 from ....pipeline_utils import DiffusionPipeline
 from .....loaders.single_file_utils import (
     VALID_URL_PREFIXES,
@@ -17,6 +19,10 @@ from .....loaders.single_file_utils import (
 
 from ..search_utils.search_pipeline_utils import SearchPipelineConfig
 from ..search_utils.model_search_data_classes import ModelData
+
+
+logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 
 class HFSearchPipeline(SearchPipelineConfig):
@@ -203,8 +209,8 @@ class HFSearchPipeline(SearchPipelineConfig):
             if not is_valid_url(url_or_path):
                 raise HTTPError(f"Invalid URL: {url_or_path}")
             hf_path, file_name = self.repo_name_or_path(url_or_path)
-            self.logger.debug(f"url_or_path:{url_or_path}")
-            self.logger.debug(f"hf_path: {hf_path} \nfile_name: {file_name}")
+            logger.debug(f"url_or_path:{url_or_path}")
+            logger.debug(f"hf_path: {hf_path} \nfile_name: {file_name}")
             if hf_path and file_name:
                 model_file_path = hf_hub_download(
                     repo_id=hf_path,
@@ -221,7 +227,7 @@ class HFSearchPipeline(SearchPipelineConfig):
             else:
                 raise TypeError("Invalid path_or_url")
         elif self.diffusers_model_check(url_or_path):
-            self.logger.debug(f"url_or_path: {url_or_path}")
+            logger.debug(f"url_or_path: {url_or_path}")
             model_file_path = self._hf_repo_download(url_or_path, branch=branch)
         else:
             raise TypeError(f"Invalid path_or_url: {url_or_path}")
@@ -644,7 +650,7 @@ class HFSearchPipeline(SearchPipelineConfig):
                         continue
                     else:
                         if security_risk == 1:
-                            self.logger.warning(
+                            logger.warning(
                                 "Warning: The specified model has not been security scanned"
                             )
                         break
@@ -685,7 +691,7 @@ class HFSearchPipeline(SearchPipelineConfig):
                             extra_limit=extra_limit,
                         )
                     else:
-                        self.logger.warning(
+                        logger.warning(
                             "No models in diffusers format were found."
                         )
                         choice_path = "_hf_no_model"
@@ -840,7 +846,7 @@ class HFSearchPipeline(SearchPipelineConfig):
         if data:
             file_value = self.get_hf_files(check_data=data)
         else:
-            raise ValueError("No available file was found.\nPlease check the name.")
+            raise ValueError("No available file was found. Please check the name.")
         if file_value:
             file_value = self.sort_by_version(file_value)
             if not auto:

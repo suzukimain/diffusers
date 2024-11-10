@@ -4,6 +4,11 @@ from .....loaders.single_file_utils import is_valid_url
 
 from .mix_class import Config_Mix
 from ..search_utils.model_search_data_classes import ModelData
+from .....utils import logging
+
+
+logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 
 class ModelSearchPipeline(Config_Mix):
