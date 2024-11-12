@@ -20,31 +20,6 @@ class DataConfig:
 
     model_dict: dict = {
         "sd" : "stabilityai/stable-diffusion-2-1",
-        "wd": "hakurei/waifu-diffusion",
-        "Anything-v3.0": "Linaqruf/anything-v3.0",
-        "anything-midjourney-v-4-1": "Joeythemonster/anything-midjourney-v-4-1",
-        "Anything-v4.5": "shibal1/anything-v4.5-clone",
-        "AB4.5_AC0.2": "aioe/AB4.5_AC0.2",
-        "basil_mix": "nuigurumi/basil_mix",
-        "Waifu-Diffusers": "Nilaier/Waifu-Diffusers",
-        "Double-Exposure-Diffusion": "joachimsallstrom/Double-Exposure-Diffusion",
-        "openjourney-v4": "prompthero/openjourney-v4",
-        "ACertainThing": "JosephusCheung/ACertainThing",
-        "Counterfeit-V2.0": "gsdf/Counterfeit-V2.0",
-        "Counterfeit-V2.5": "gsdf/Counterfeit-V2.5",
-        "chilled_remix":"sazyou-roukaku/chilled_remix",
-        "chilled_reversemix":"sazyou-roukaku/chilled_reversemix",
-        "7th_Layer": "syaimu/7th_test",
-        "loli": "JosefJilek/loliDiffusion",
-        "EimisAnimeDiffusion": "eimiss/EimisAnimeDiffusion_1.0v",
-        "Space-diffusion" : "dallinmackay/JWST-Deep-Space-diffusion",
-        "Riga_Collection": "natsusakiyomi/Riga_Collection",
-        "space-machine" : "rabidgremlin/sd-db-epic-space-machine",
-        "spacemidj" : "Falah/spacemidj",
-        "anime-kawai-diffusion": "Ojimi/anime-kawai-diffusion",
-        "Realistic_Vision": "SG161222/Realistic_Vision_V2.0",
-        "nasa-space" : "sd-dreambooth-library/nasa-space-v2-768",
-        "meinamix_meina": "namvuong96/civit_meinamix_meinaV10",
         }
     
     exclude: list =  [
@@ -164,7 +139,7 @@ class ModelStatus:
 
 
 @dataclass
-class ModelData:
+class SearchPipelineOutput:
     """
     Data class for storing model data.
 

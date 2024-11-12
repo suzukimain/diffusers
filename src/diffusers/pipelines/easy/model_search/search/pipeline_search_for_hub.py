@@ -7,9 +7,9 @@ from .....loaders.single_file_utils import is_valid_url
 from .pipeline_search_for_HuggingFace import HFSearchPipeline
 from .pipeline_search_for_civitai import CivitaiSearchPipeline
 from ..search_utils import (
-    ModelData,
     RepoStatus,
-    ModelStatus
+    ModelStatus,
+    SearchPipelineOutput
     )
 
 
@@ -58,11 +58,16 @@ class ModelSearchPipeline(
             civitai_token = civitai_token,
             include_params = include_params
         )
-        if include_params:
-            return self.SearchPipelineOutput(self.model_info)
+                
+        if not include_params:
+            return result
         else:
-            return result        
-        
+            return SearchPipelineOutput(
+                model_path=self.model_info["model_path"],
+                load_type=self.model_info["load_type"],
+                repo_status=RepoStatus(**self.model_info["repo_status"]),
+                model_status=ModelStatus(**self.model_info["model_status"])
+            )
 
     def File_search(
             self,
@@ -91,7 +96,7 @@ class ModelSearchPipeline(
             return self.user_select_file(search_word)
     
 
-    def user_select_file(self, search_word):
+    def user_select_file(self, search_word, result):
         """
         Allow user to select a file from the search results.
         """
