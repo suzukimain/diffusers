@@ -9,7 +9,8 @@ from .pipeline_search_for_civitai import CivitaiSearchPipeline
 from ..search_utils import (
     RepoStatus,
     ModelStatus,
-    SearchPipelineOutput
+    SearchPipelineOutput,
+    SearchPipelineConfig
     )
 
 
@@ -18,7 +19,8 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 class ModelSearchPipeline(
     HFSearchPipeline,
-    CivitaiSearchPipeline
+    CivitaiSearchPipeline,
+    SearchPipelineConfig
     ):
     def __init__(self):
         super().__init__()

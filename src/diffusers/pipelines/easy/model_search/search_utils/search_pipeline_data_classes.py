@@ -18,6 +18,8 @@ class DataConfig:
     exts: list =  [".safetensors", ".ckpt",".bin"]
     model_data: dict = {}
 
+    model_info: dict = {}
+
     model_dict: dict = {
         "sd" : "stabilityai/stable-diffusion-2-1",
         }
