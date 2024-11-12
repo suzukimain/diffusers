@@ -16,10 +16,7 @@ from .....loaders.single_file_utils import (
     is_valid_url
     )
 
-from ..search_utils import (
-    SearchPipelineConfig,
-    ModelData
-    )
+from ..search_utils import SearchPipelineConfig
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
