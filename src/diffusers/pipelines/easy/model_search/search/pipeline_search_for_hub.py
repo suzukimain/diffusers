@@ -1,9 +1,9 @@
 import os
-
+from typing import Union 
 from .....utils import logging
 from .....loaders.single_file_utils import is_valid_url
 
-
+from huggingface_hub import login
 from .pipeline_search_for_HuggingFace import HFSearchPipeline
 from .pipeline_search_for_civitai import CivitaiSearchPipeline
 from ..search_utils import (
@@ -24,49 +24,74 @@ class ModelSearchPipeline(
         super().__init__()
     
 
-    def __call__(
-            self,
-            seach_word,
-            auto=True,
-            download=False,
-            model_type="Checkpoint",
-            model_format = "single_file",
-            branch = "main",
-            priority_hub = "hugface",
-            local_file_only = False,
-            hf_token = None,
-            civitai_token = None,
-            include_params = False,
-            ):
+    @classmethod
+    def for_hubs(
+            cls,
+            seach_word: str,
+            **kwargs
+            ) -> Union[str, SearchPipelineOutput]:
+        """Search and retrieve model information from various sources.
 
-        self.single_file_only = True if "single_file" == model_format else False
+        Args:
+            seach_word: The search term to find the model.
+            auto: Whether to automatically select the best match.
+            download: Whether to download the model locally.
+            model_type: Type of model (e.g., "Checkpoint", "LORA").
+            model_format: Format of the model ("single_file", "diffusers", "all").
+            branch: The repository branch to search in.
+            priority_hub: Which model hub to prioritize ("huggingface" or "civitai").
+            local_file_only: Whether to search only in local files.
+            include_params: Whether to include additional model parameters in output.
+            hf_token: HuggingFace API token for authentication.
+            civitai_token: Civitai API token for authentication.            
 
-        self.model_info["model_status"]["search_word"] = seach_word
-        self.model_info["model_status"]["local"] = True if download or local_file_only else False
+        Returns:
+            Either a string path to the model or a SearchPipelineOutput object with
+            full model information if include_params is True.
 
-        self.hf_login(hf_token)
+        Raises:
+            ValueError: If the model cannot be found or accessed.
+        """
+        auto = kwargs.pop("auto", True)
+        download = kwargs.pop("download", False)
+        model_type = kwargs.pop("model_type", "single_file")
+        model_format = kwargs.pop("model_format", "Checkpoint")
+        branch = kwargs.pop("branch", "main")
+        priority_hub = kwargs.pop("priority_hub", "huggingface")
+        include_params = kwargs.pop("include_params", False)
+        #local_search_only = kwargs.pop("local_search_only", False)
+        civitai_token = kwargs.pop("civitai_token", None)
 
-        result = self.model_set(
-            model_select = seach_word,
-            auto = auto,
-            download = download,
-            model_format = model_format,
-            model_type = model_type,
-            branch = branch,
-            priority_hub = priority_hub,
-            local_file_only = local_file_only,
-            civitai_token = civitai_token,
-            include_params = include_params
+        if "hf_token" in kwargs:
+            hf_token = kwargs.pop("hf_token", None)
+            login(token=hf_token)        
+        
+        cls.single_file_only = True if "single_file" == model_format else False
+
+        cls.model_info["model_status"]["search_word"] = seach_word
+        cls.model_info["model_status"]["local"] = True if download or local_file_only else False
+
+        result = cls.model_set(
+            model_select=seach_word,
+            auto=auto,
+            download=download,
+            model_format=model_format,
+            model_type=model_type,
+            branch=branch,
+            priority_hub=priority_hub,
+            local_file_only=local_file_only,
+            civitai_token=civitai_token,
+            include_params=include_params
         )
                 
         if not include_params:
             return result
         else:
             return SearchPipelineOutput(
-                model_path=self.model_info["model_path"],
-                load_type=self.model_info["load_type"],
-                repo_status=RepoStatus(**self.model_info["repo_status"]),
-                model_status=ModelStatus(**self.model_info["model_status"])
+                model_path=cls.model_info["model_path"],
+                load_type=cls.model_info["load_type"],
+                repo_status=RepoStatus(**cls.model_info["repo_status"]),
+                model_status=ModelStatus(**cls.model_info["model_status"])
             )
 
     def File_search(
@@ -134,7 +159,7 @@ class ModelSearchPipeline(
             model_format = "single_file",
             model_type = "Checkpoint",
             branch = "main",
-            priority_hub = "hugface",
+            priority_hub = "huggingface",
             local_file_only = False,
             civitai_token = None,
             include_params = False
@@ -238,7 +263,7 @@ class ModelSearchPipeline(
                 file_path=self.file_name_set(model_select,auto,model_type)
                 if file_path == "_hf_no_model":
                     raise ValueError("Model not found")
-                elif file_path == "_DFmodel":
+                elif file_path == "DiffusersFormat":
                     if download:
                         model_path= self.run_hf_download(model_select)
                     else:
@@ -262,7 +287,7 @@ class ModelSearchPipeline(
             self.model_info["repo_status"]["repo_name"] = repo_name
                 
         else:
-            if priority_hub == "hugface":
+            if priority_hub == "huggingface":
                 model_path = self.hf_model_set(
                     model_select=model_select,
                     auto=auto,
@@ -313,49 +338,3 @@ class ModelSearchPipeline(
             yield self.model_info
         else:
             yield model_path
-
-    @classmethod
-    def from_hub(cls, model_id, **kwargs):
-        """
-        Load a pipeline from the Hugging Face Hub.
-
-        Args:
-            model_id (str): The model ID on the Hugging Face Hub.
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            ModelSearchPipeline: The loaded pipeline.
-        """
-        instance = cls()
-        instance.model_data["model_status"]["search_word"] = model_id
-        instance.model_data["model_status"]["local"] = False
-        instance.model_data["model_path"] = f"https://huggingface.co/{model_id}"
-        return instance
-
-    @classmethod
-    def from_hf(cls, model_id, **kwargs):
-        """
-        Load a pipeline from Hugging Face.
-
-        Args:
-            model_id (str): The model ID on Hugging Face.
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            ModelSearchPipeline: The loaded pipeline.
-        """
-        pass
-
-    @classmethod
-    def from_civitai(cls, model_id, **kwargs):
-        """
-        Load a pipeline from Civitai.
-
-        Args:
-            model_id (str): The model ID on Civitai.
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            ModelSearchPipeline: The loaded pipeline.
-        """
-        pass

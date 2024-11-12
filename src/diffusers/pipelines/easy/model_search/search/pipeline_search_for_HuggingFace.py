@@ -84,14 +84,10 @@ class HFSearchPipeline(SearchPipelineConfig):
         self.hf_repo_id = ""
         self.force_download = False
         self.hf_api = HfApi()
-
-
-    def __call__(self, **keywords):
-        return self.hf_model_set(**keywords)
     
-
-    def hf_model_set(
-            self,
+    @classmethod
+    def for_hf(
+            cls,
             model_select,
             auto,
             model_format,
@@ -102,43 +98,48 @@ class HFSearchPipeline(SearchPipelineConfig):
             ):
         
         model_path = ""
-        model_name = self.model_name_search(
+        model_name = cls.model_name_search(
             model_name=model_select,
             auto_set=auto,
             model_format=model_format,
             include_civitai=include_civitai
             )
         if not model_name == "_hf_no_model":
-            file_path = self.file_name_set(
+            file_path = cls.file_name_set(
                 model_select=model_name,
                 auto=auto,
                 model_format=model_format,
                 model_type=model_type
                 )
-            if file_path == "_DFmodel":
+            if file_path == "DiffusersFormat":
                 if download:
-                    model_path = self.run_hf_download(
+                    model_path = cls.run_hf_download(
                         model_name,
-                        branch=self.branch
+                        branch=cls.branch
                         )
                 else:
                     model_path = model_name
-                self.model_info["model_path"] = model_path
-                self.model_info["model_status"]["single_file"] = False
-                self.model_info["load_type"] = "from_pretrained"
+                cls.model_info["model_path"] = model_path
+                cls.model_info["model_status"]["single_file"] = False
+                cls.model_info["load_type"] = "from_pretrained"
 
             else:
-                hf_model_path = f"https://huggingface.co/{model_name}/blob/{self.branch}/{file_path}"
+                hf_model_path = f"https://huggingface.co/{model_name}/blob/{cls.branch}/{file_path}"
                 if download:
-                    model_path = self.run_hf_download(hf_model_path)
+                    model_path = cls.run_hf_download(hf_model_path)
                 else:
                     model_path = hf_model_path
-                self.model_info["model_status"]["single_file"] = True
-                self.model_info["load_type"] = "from_single_file"
-                self.model_info["model_status"]["filename"] = file_path
+                cls.model_info["model_status"]["single_file"] = True
+                cls.model_info["load_type"] = "from_single_file"
+                cls.model_info["model_status"]["filename"] = file_path
 
             if include_params:
-                return self.SearchPipelineOutput(self.model_info)
+                return SearchPipelineOutput(
+                    model_path=cls.model_info["model_path"],
+                    load_type=cls.model_info["load_type"],
+                    repo_status=RepoStatus(**cls.model_info["repo_status"]),
+                    model_status=ModelStatus(**cls.model_info["model_status"])
+                    )
             else:
                 return model_path
         else:
@@ -734,7 +735,7 @@ class HFSearchPipeline(SearchPipelineConfig):
                 while True:
                     result = input("Do you want to use it?[y/n]: ")
                     if result.lower() in ["y", "yes"]:
-                        return "_DFmodel"
+                        return "DiffusersFormat"
                     elif result.lower() in ["n", "no"]:
                         sec_result = input("Searching for civitai?[y/n]: ")
                         if sec_result.lower() in ["y", "yes"]:
@@ -773,7 +774,7 @@ class HFSearchPipeline(SearchPipelineConfig):
                 if self.diffuser_model and choice == 0:
                     self.choice_number = -1
                     self.update_json_dict(key=check_key, value=choice)
-                    return "_DFmodel"
+                    return "DiffusersFormat"
 
                 elif choice == (self.num_prints + 1):
                     break
@@ -810,7 +811,7 @@ class HFSearchPipeline(SearchPipelineConfig):
                 if self.diffuser_model and choice == 0:
                     self.choice_number = -1
                     self.update_json_dict(key=check_key, value=choice)
-                    return "_DFmodel"
+                    return "DiffusersFormat"
 
                 if 1 <= choice <= len(file_value):
                     choice_path = file_value[choice - 1]
@@ -860,12 +861,12 @@ class HFSearchPipeline(SearchPipelineConfig):
                 choice_path = self.file_name_set_sub(model_select, file_value)
             else:
                 if self.diffuser_model and (not skip_difusers):
-                    choice_path = "_DFmodel"
+                    choice_path = "DiffusersFormat"
                 else:
                     choice_path = self.model_safe_check(file_value)
 
         elif self.diffuser_model:
-            choice_path = "_DFmodel"
+            choice_path = "DiffusersFormat"
         else:
             raise FileNotFoundError(
                 "No available files found in the specified repository"
