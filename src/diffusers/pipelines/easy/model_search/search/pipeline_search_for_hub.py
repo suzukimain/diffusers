@@ -348,7 +348,7 @@ class ModelSearchPipeline(SearchPipeline):
         search_word,
         **kwargs
     ):
-        return super().search_for_hubs(search_word, **kwargs)
+        return super().search_for_hubs(search_word=search_word, **kwargs)
     
     @classmethod
     def for_HF(
@@ -356,7 +356,7 @@ class ModelSearchPipeline(SearchPipeline):
         search_word,
         **kwargs
     ):
-        return super().search_for_hf(search_word, **kwargs)
+        return super().search_for_hf(search_word=search_word, **kwargs)
     
     @classmethod
     def for_civitai(
@@ -364,4 +364,4 @@ class ModelSearchPipeline(SearchPipeline):
         search_word,
         **kwargs
     ):
-        return super().search_for_civitai(search_word,**kwargs)
+        return super().search_for_civitai(search_word=search_word, **kwargs)
