@@ -359,5 +359,9 @@ class ModelSearchPipeline(SearchPipeline):
         return super().search_for_hf(search_word, **kwargs)
     
     @classmethod
-    def for_civitai(cls, search_word, auto, model_type, download=True, civitai_token=None, skip_error=True, include_hugface=True, include_params=False):
-        return super().search_for_civitai(search_word, auto, model_type, download, civitai_token, skip_error, include_hugface, include_params)
+    def for_civitai(
+        cls,
+        search_word,
+        **kwargs
+    ):
+        return super().search_for_civitai(search_word,**kwargs)
