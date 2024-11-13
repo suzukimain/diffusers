@@ -5,7 +5,7 @@ from requests import HTTPError
 from dataclasses import asdict
 from huggingface_hub import (
     hf_hub_download, 
-    HfApi,
+    hf_api,
     login
     )
 
@@ -16,7 +16,12 @@ from .....loaders.single_file_utils import (
     is_valid_url
     )
 
-from ..search_utils import SearchPipelineConfig
+from ..search_utils import (
+    SearchPipelineConfig,
+    SearchPipelineOutput,
+    RepoStatus,
+    ModelStatus,
+    )
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -38,7 +43,6 @@ class HFSearchPipeline(SearchPipelineConfig):
         special_file (str): Special file.
         hf_repo_id (str): Huggingface repository ID.
         force_download (bool): Force download flag.
-        hf_api (HfApi): Huggingface API instance.
 
     Methods:
         __call__(*args, **kwds): Returns model data.
@@ -80,11 +84,10 @@ class HFSearchPipeline(SearchPipelineConfig):
         self.special_file = ""
         self.hf_repo_id = ""
         self.force_download = False
-        self.hf_api = HfApi()
+        
     
-    @classmethod
-    def for_hf(
-            cls,
+    def search_for_hf(
+            self,
             model_select,
             auto,
             model_format,
@@ -95,14 +98,14 @@ class HFSearchPipeline(SearchPipelineConfig):
             ):
         
         model_path = ""
-        model_name = cls.model_name_search(
+        model_name = self.model_name_search(
             model_name=model_select,
             auto_set=auto,
             model_format=model_format,
             include_civitai=include_civitai
             )
-        if not model_name == "_hf_no_model":
-            file_path = cls.file_name_set(
+        if not model_name is None:
+            file_path = self.file_name_set(
                 model_select=model_name,
                 auto=auto,
                 model_format=model_format,
@@ -110,37 +113,37 @@ class HFSearchPipeline(SearchPipelineConfig):
                 )
             if file_path == "DiffusersFormat":
                 if download:
-                    model_path = cls.run_hf_download(
+                    model_path = self.run_hf_download(
                         model_name,
-                        branch=cls.branch
+                        branch=self.branch
                         )
                 else:
                     model_path = model_name
-                cls.model_info["model_path"] = model_path
-                cls.model_info["model_status"]["single_file"] = False
-                cls.model_info["load_type"] = "from_pretrained"
+                self.model_info["model_path"] = model_path
+                self.model_info["model_status"]["single_file"] = False
+                self.model_info["load_type"] = "from_pretrained"
 
             else:
-                hf_model_path = f"https://huggingface.co/{model_name}/blob/{cls.branch}/{file_path}"
+                hf_model_path = f"https://huggingface.co/{model_name}/blob/{self.branch}/{file_path}"
                 if download:
-                    model_path = cls.run_hf_download(hf_model_path)
+                    model_path = self.run_hf_download(hf_model_path)
                 else:
                     model_path = hf_model_path
-                cls.model_info["model_status"]["single_file"] = True
-                cls.model_info["load_type"] = "from_single_file"
-                cls.model_info["model_status"]["filename"] = file_path
+                self.model_info["model_status"]["single_file"] = True
+                self.model_info["load_type"] = "from_single_file"
+                self.model_info["model_status"]["filename"] = file_path
 
             if include_params:
                 return SearchPipelineOutput(
-                    model_path=cls.model_info["model_path"],
-                    load_type=cls.model_info["load_type"],
-                    repo_status=RepoStatus(**cls.model_info["repo_status"]),
-                    model_status=ModelStatus(**cls.model_info["model_status"])
+                    model_path=self.model_info["model_path"],
+                    load_type=self.model_info["load_type"],
+                    repo_status=RepoStatus(**self.model_info["repo_status"]),
+                    model_status=ModelStatus(**self.model_info["model_status"])
                     )
             else:
                 return model_path
         else:
-            return "_hf_no_model"
+            return None
 
 
     def repo_name_or_path(self, model_name_or_path):
@@ -356,7 +359,7 @@ class HFSearchPipeline(SearchPipelineConfig):
             "fetch_config": True,
             "full": True,
         }
-        return [asdict(value) for value in list(self.hf_api.list_models(**params))]
+        return [asdict(value) for value in list(hf_api.list_models(**params))]
 
 
     def old_hf_model_search(self, model_path, limit_num):
@@ -390,7 +393,7 @@ class HFSearchPipeline(SearchPipelineConfig):
         Returns:
             dict: Model information.
         """
-        hf_info = self.hf_api.model_info(
+        hf_info = hf_api.model_info(
             repo_id=model_name, files_metadata=True, securityStatus=True
         )
         model_dict = asdict(hf_info)
@@ -628,7 +631,7 @@ class HFSearchPipeline(SearchPipelineConfig):
                     print("\033[33mOnly natural numbers are valid。\033[0m")
                     continue
                 if choice == 0 and include_civitai:
-                    return "_hf_no_model"
+                    return None
                 elif (not Recursive_execution) and choice == len(repo_model_list) + 1:
                     return self.model_name_search(
                         model_name=model_name,
@@ -698,11 +701,8 @@ class HFSearchPipeline(SearchPipelineConfig):
                         logger.warning(
                             "No models in diffusers format were found."
                         )
-                        choice_path = "_hf_no_model"
-            else:
-                choice_path = "_hf_no_model"
 
-        return choice_path
+        return None
 
 
     def file_name_set_sub(self, model_select, file_value):
@@ -722,7 +722,7 @@ class HFSearchPipeline(SearchPipelineConfig):
                 print("\033[31mNo candidates found at huggingface\033[0m")
                 res = input("Searching for civitai?: ")
                 if res.lower() in ["y", "yes"]:
-                    return "_hf_no_model"
+                    return None
                 else:
                     raise ValueError(
                         "No available files were found in the specified repository"
@@ -736,7 +736,7 @@ class HFSearchPipeline(SearchPipelineConfig):
                     elif result.lower() in ["n", "no"]:
                         sec_result = input("Searching for civitai?[y/n]: ")
                         if sec_result.lower() in ["y", "yes"]:
-                            return "_hf_no_model"
+                            return None
                         elif sec_result.lower() in ["n", "no"]:
                             raise ValueError(
                                 "Processing was stopped because no corresponding model was found."
