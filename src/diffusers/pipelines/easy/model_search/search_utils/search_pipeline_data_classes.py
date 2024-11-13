@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 CUSTOM_SEARCH_KEY = {
     "sd" : "stabilityai/stable-diffusion-2-1",
@@ -46,13 +46,22 @@ EXTENSION =  [".safetensors", ".ckpt",".bin"]
 class DataConfig:
     """
     Configuration class for data handling in the model search pipeline.
+
+    Attributes:
+    - config_file: Path to the configuration file.
+    - model_data: Dictionary containing model data.
+    - model_info: Dictionary containing model information.
+    - num_prints: Number of times to print the information.
+    - force_download: Flag to force downloading the files.
+    - single_file_only: Flag to handle only a single file.
+    - hf_token: Hugging Face token for authentication.
     """
-    Config_file: str = "model_index.json"
-    model_data: dict
-    model_info: dict
-    num_prints = 20
+    config_file: str = "model_index.json"
+    model_data: dict = field(default_factory=dict)
+    model_info: dict = field(default_factory=dict)
+    num_prints: int = 20
     force_download: bool = False
-    single_file_only: bool  = False
+    single_file_only: bool = False
     hf_token: str = None
 
 
