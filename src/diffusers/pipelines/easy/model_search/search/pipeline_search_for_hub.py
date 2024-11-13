@@ -1,5 +1,7 @@
 import os
-from typing import Union 
+from typing import Union
+
+from diffusers.pipelines.easy.model_search.search_utils.search_pipeline_data_classes import CUSTOM_SEARCH_KEY 
 from .....utils import logging
 from .....loaders.single_file_utils import is_valid_url
 
@@ -9,7 +11,8 @@ from .pipeline_search_for_civitai import CivitaiSearchPipeline
 from ..search_utils import (
     RepoStatus,
     ModelStatus,
-    SearchPipelineOutput
+    SearchPipelineOutput,
+    CONFIG_FILE_LIST
     )
 
 
@@ -107,7 +110,7 @@ class SearchPipeline(
             for file in files:
                 if any(file.endswith(ext) for ext in self.exts):
                     path = os.path.join(root, file)
-                    if path not in self.exclude:
+                    if not any(path.endswith(ext) for ext in CONFIG_FILE_LIST):
                         yield path
                         if auto:
                             distance = self.calculate_distance(search_word, file)
@@ -186,6 +189,8 @@ class SearchPipeline(
             if is_valid_url(_check_url):
                 model_select = model_path_to_check
                 self.model_info["model_path"] = _check_url
+            else:
+                logger.warning(f"The following custom search keys are ignored.`{model_select} : {CUSTOM_SEARCH_KEY[model_select]}`")
 
         if local_file_only:
             model_path = next(self.File_search(
@@ -198,7 +203,7 @@ class SearchPipeline(
 
         elif model_select.startswith("https://huggingface.co/"):
             if not is_valid_url(model_select):
-                raise ValueError(self.Error_M1)
+                raise ValueError("Could not load URL")
             else:
                 if download:
                     model_path = self.run_hf_download(model_select)
@@ -334,9 +339,11 @@ class SearchPipeline(
             value = model_path
             )       
         if include_params:
-            yield self.model_info
+            return self.model_info
         else:
-            yield model_path
+            return model_path
+
+
 
 class ModelSearchPipeline(SearchPipeline):
     def __init__(self):

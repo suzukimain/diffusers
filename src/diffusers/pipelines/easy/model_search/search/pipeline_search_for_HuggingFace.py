@@ -21,6 +21,7 @@ from ..search_utils import (
     SearchPipelineOutput,
     RepoStatus,
     ModelStatus,
+    CONFIG_FILE_LIST
     )
 
 
@@ -31,61 +32,30 @@ class HFSearchPipeline(SearchPipelineConfig):
     """
     Huggingface class is used to search and download models from Huggingface.
 
-    Attributes:
-        num_prints (int): Number of prints.
-        model_id (str): Model ID.
-        model_name (str): Model name.
-        vae_name (str): VAE name.
-        model_file (str): Model file.
-        diffuser_model (bool): Diffuser model flag.
-        check_choice_key (str): Check choice key.
-        choice_number (int): Choice number.
-        special_file (str): Special file.
-        hf_repo_id (str): Huggingface repository ID.
-        force_download (bool): Force download flag.
-
-    Methods:
-        __call__(*args, **kwds): Returns model data.
-        repo_name_or_path(model_name_or_path): Returns repository name or path.
-        hf_login(token): Logs in to Huggingface.
-        _hf_repo_download(path, branch): Downloads repository.
-        run_hf_download(url_or_path, branch): Downloads model from Huggingface.
-        model_safe_check(model_list): Checks if model is safe.
-        list_safe_sort(model_list): Sorts model list by safety.
-        diffusers_model_check(checked_model, branch): Checks if model is a diffuser model.
-        hf_model_check(path): Checks if model exists on Huggingface.
-        model_data_get(path, model_info): Retrieves model data.
-        hf_model_search(model_path, limit_num): Searches for models on Huggingface.
-        old_hf_model_search(model_path, limit_num): Old method for searching models on Huggingface.
-        hf_model_info(model_name): Retrieves model information from Huggingface.
-        old_hf_model_info(model_select): Old method for retrieving model information from Huggingface.
-        hf_security_check(check_dict): Checks model security.
-        check_if_file_exists(hf_repo_info): Checks if file exists in Huggingface repository.
-        hf_models(model_name, limit): Retrieves models from Huggingface.
-        find_max_like(model_dict_list): Finds the model with the most likes.
-        sort_by_likes(model_dict_list): Sorts models by likes.
-        get_hf_files(check_data): Retrieves files from Huggingface.
-        model_name_search(model_name, auto_set, model_format, Recursive_execution, extra_limit, include_civitai):
-            Searches for model name on Huggingface.
-        file_name_set_sub(model_select, file_value): Sets file name.
-        file_name_set(model_select, auto, model_format, model_type): Sets file name.
     """
-
+    model_info = {
+        "model_path" : "",
+        "load_type" : "",
+        "repo_status":{
+            "repo_name":"",
+            "repo_id":"",
+            "version_id":""
+            },
+        "model_status":{
+            "search_word" : "",
+            "download_url": "",
+            "filename":"",
+            "file_id": "",
+            "fp": "",
+            "local" : False,
+            "single_file" : False
+            },
+        }
+    
     def __init__(self):
         super().__init__()
-        self.num_prints = 20
-        self.model_id = ""
-        self.model_name = ""
-        self.vae_name = ""
-        self.model_file = ""
-        self.diffuser_model = False
-        self.check_choice_key = ""
-        self.choice_number = -1
-        self.special_file = ""
-        self.hf_repo_id = ""
-        self.force_download = False
         
-    
+        
     def search_for_hf(
             self,
             search_word,
@@ -329,7 +299,7 @@ class HFSearchPipeline(SearchPipelineConfig):
                 df_model = True
             elif (
                 any(file_path.endswith(ext) for ext in self.exts)
-                and not any(file_path.endswith(ex) for ex in self.exclude)
+                and not any(file_path.endswith(ex) for ex in CONFIG_FILE_LIST)
             ):
                 file_value_list.append(file_path)
         return {
@@ -555,8 +525,7 @@ class HFSearchPipeline(SearchPipelineConfig):
                 fi_path = item["rfilename"]
                 if (
                     any(fi_path.endswith(ext) for ext in self.exts)
-                    and (not any(fi_path.endswith(ex) for ex in self.exclude))
-                    and (not any(fi_path.endswith(st) for st in self.config_file_list))
+                    and (not any(fi_path.endswith(ex) for ex in CONFIG_FILE_LIST))
                 ):
                     check_file_value.append(fi_path)
         return check_file_value
@@ -644,9 +613,7 @@ class HFSearchPipeline(SearchPipelineConfig):
                     choice_path_dict = repo_model_list[choice - 1]
                     choice_path = choice_path_dict["model_id"]
 
-                    security_risk = self.model_data_get(path=choice_path)[
-                        "security_risk"
-                    ]
+                    security_risk = self.model_data_get(path=choice_path)["security_risk"]
                     if security_risk == 2:
                         print("\033[31mThis model has a security problem。\033[0m")
                         if choice_path not in models_to_exclude:
@@ -838,6 +805,8 @@ class HFSearchPipeline(SearchPipelineConfig):
         """
         if self.diffusers_model_check(model_select) and model_type == "Checkpoint":
             self.diffuser_model = True
+        else:
+            self.diffuser_model = False
 
         if model_format == "single_file":
             skip_difusers = True

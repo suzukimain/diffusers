@@ -5,5 +5,6 @@ from .search_pipeline_utils import (
 from .search_pipeline_data_classes import (
     SearchPipelineOutput,
     RepoStatus,
-    ModelStatus
+    ModelStatus,
+    CONFIG_FILE_LIST
     )

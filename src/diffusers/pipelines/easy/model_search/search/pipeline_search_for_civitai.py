@@ -72,6 +72,25 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
         include_hugface = kwargs.pop("include_hugface",True)
         skip_error = kwargs.pop("skip_error", True)
 
+        model_info = {
+            "model_path" : "",
+            "load_type" : "",
+            "repo_status":{
+                "repo_name":"",
+                "repo_id":"",
+                "version_id":""
+                },
+            "model_status":{
+                "search_word" : "",
+                "download_url": "",
+                "filename":"",
+                "file_id": "",
+                "fp": "",
+                "local" : False,
+                "single_file" : False
+                },
+            }
+
         state = self.requests_civitai(
             query=search_word,
             auto=auto,
@@ -97,39 +116,37 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
         file_status_dict = self.file_select_civitai(state_list=files_list, auto=auto)
         
         model_download_url = file_status_dict["download_url"]
-        self.model_info["repo_status"]["repo_name"] = dict_of_civitai_repo["repo_name"]
-        self.model_info["repo_status"]["repo_id"] = dict_of_civitai_repo["repo_id"]
-        self.model_info["repo_status"]["version_id"] = files_list["id"]
-        self.model_info["model_status"]["download_url"] = model_download_url
-        self.model_info["model_status"]["filename"] = file_status_dict["filename"]
-        self.model_info["model_status"]["file_id"] = file_status_dict["file_id"]
-        self.model_info["model_status"]["fp"] = file_status_dict["fp"]
-        self.model_info["model_status"]["file_format"] = file_status_dict["file_format"]
-        self.model_info["model_status"]["filename"] = file_status_dict["filename"]
-        self.model_info["model_status"]["single_file"] = True
+        model_info["repo_status"]["repo_name"] = dict_of_civitai_repo["repo_name"]
+        model_info["repo_status"]["repo_id"] = dict_of_civitai_repo["repo_id"]
+        model_info["repo_status"]["version_id"] = files_list["id"]
+        model_info["model_status"]["download_url"] = model_download_url
+        model_info["model_status"]["filename"] = file_status_dict["filename"]
+        model_info["model_status"]["file_id"] = file_status_dict["file_id"]
+        model_info["model_status"]["fp"] = file_status_dict["fp"]
+        model_info["model_status"]["file_format"] = file_status_dict["file_format"]
+        model_info["model_status"]["filename"] = file_status_dict["filename"]
+        model_info["model_status"]["single_file"] = True
         if download:
             model_save_path = self.civitai_save_path()
-            self.model_info["model_path"] = model_save_path
-            self.model_info["load_type"] = "from_single_file"
+            model_info["model_path"] = model_save_path
+            model_info["load_type"] = "from_single_file"
             self.download_model(
                 url=model_download_url,
                 save_path=model_save_path,
                 civitai_token=civitai_token,
             )
         else:
-            self.model_info["model_path"] = self.model_info["model_status"][
-                "download_url"
-            ]
-            self.model_info["load_type"] = ""
+            model_info["model_path"] = model_info["model_status"]["download_url"]
+            model_info["load_type"] = ""
     
         if not include_params:
-            return self.model_info["model_path"]
+            return model_info["model_path"]
         else:
             return SearchPipelineOutput(
-                model_path=self.model_info["model_path"],
-                load_type=self.model_info["load_type"],
-                repo_status=RepoStatus(**self.model_info["repo_status"]),
-                model_status=ModelStatus(**self.model_info["model_status"])
+                model_path=model_info["model_path"],
+                load_type=model_info["load_type"],
+                repo_status=RepoStatus(**model_info["repo_status"]),
+                model_status=ModelStatus(**model_info["model_status"])
             )
 
 
