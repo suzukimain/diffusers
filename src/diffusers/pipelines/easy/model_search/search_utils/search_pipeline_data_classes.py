@@ -40,13 +40,14 @@ CONFIG_FILE_LIST = [
     "vae/diffusion_pytorch_model.fp16.ckpt"
 ]
 
+EXTENSION =  [".safetensors", ".ckpt",".bin"]
+
 @dataclass
 class DataConfig:
     """
     Configuration class for data handling in the model search pipeline.
     """
     Config_file: str = "model_index.json"
-    exts: list =  [".safetensors", ".ckpt",".bin"]
     model_data: dict
     model_info: dict
     num_prints = 20

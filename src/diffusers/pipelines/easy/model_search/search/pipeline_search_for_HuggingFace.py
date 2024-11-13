@@ -23,7 +23,8 @@ from ..search_utils import (
     SearchPipelineOutput,
     RepoStatus,
     ModelStatus,
-    CONFIG_FILE_LIST
+    CONFIG_FILE_LIST,
+    EXTENSION
     )
 
 
@@ -304,7 +305,7 @@ class HFSearchPipeline(SearchPipelineConfig):
             if "model_index.json" == file_path and (not self.single_file_only):
                 df_model = True
             elif (
-                any(file_path.endswith(ext) for ext in self.exts)
+                any(file_path.endswith(ext) for ext in EXTENSION)
                 and not any(file_path.endswith(ex) for ex in CONFIG_FILE_LIST)
             ):
                 file_value_list.append(file_path)
@@ -434,7 +435,7 @@ class HFSearchPipeline(SearchPipelineConfig):
             return any(
                 item["rfilename"].endswith(ext)
                 for item in hf_repo_info["siblings"]
-                for ext in self.exts
+                for ext in EXTENSION
             )
         except KeyError:
             return False
@@ -530,7 +531,7 @@ class HFSearchPipeline(SearchPipelineConfig):
             for item in siblings:
                 fi_path = item["rfilename"]
                 if (
-                    any(fi_path.endswith(ext) for ext in self.exts)
+                    any(fi_path.endswith(ext) for ext in EXTENSION)
                     and (not any(fi_path.endswith(ex) for ex in CONFIG_FILE_LIST))
                 ):
                     check_file_value.append(fi_path)

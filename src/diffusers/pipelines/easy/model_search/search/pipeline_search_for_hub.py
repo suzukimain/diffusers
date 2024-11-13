@@ -12,7 +12,8 @@ from ..search_utils import (
     ModelStatus,
     SearchPipelineOutput,
     CONFIG_FILE_LIST,
-    CUSTOM_SEARCH_KEY
+    CUSTOM_SEARCH_KEY,
+    EXTENSION
     )
 
 
@@ -108,7 +109,7 @@ class SearchPipeline(
         closest_distance = float('inf')
         for root, dirs, files in os.walk("/"):
             for file in files:
-                if any(file.endswith(ext) for ext in self.exts):
+                if any(file.endswith(ext) for ext in EXTENSION):
                     path = os.path.join(root, file)
                     if not any(path.endswith(ext) for ext in CONFIG_FILE_LIST):
                         yield path

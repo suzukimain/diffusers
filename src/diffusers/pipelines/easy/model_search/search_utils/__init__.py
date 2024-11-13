@@ -6,5 +6,7 @@ from .search_pipeline_data_classes import (
     SearchPipelineOutput,
     RepoStatus,
     ModelStatus,
-    CONFIG_FILE_LIST
+    CONFIG_FILE_LIST,
+    CUSTOM_SEARCH_KEY,
+    EXTENSION
     )
