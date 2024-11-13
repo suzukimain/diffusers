@@ -1,13 +1,27 @@
 import os
+import re
 import json
 import inspect
 import importlib
 import difflib
-from dataclasses import is_dataclass
-
+from dataclasses import (
+    is_dataclass,
+    dataclass
+    )
 from ..... import pipelines
+from ....pipeline_utils import DiffusionPipeline
+from .....loaders.single_file_utils import (
+    VALID_URL_PREFIXES,
+    is_valid_url,
+    _extract_repo_id_and_weights_name
+    )
 from .....utils.import_utils import is_natsort_available
-from .model_search_data_classes import DataConfig
+from .search_pipeline_data_classes import (
+    DataConfig,
+    RepoStatus,
+    ModelStatus,
+    SearchPipelineOutput
+)
 
 if is_natsort_available():
     from natsort import natsorted
@@ -17,6 +31,7 @@ TASK_KEY_MAPPING = {
     "txt2video": ["frames"],
     "txt2audio": ["audios"],
 }
+
 
 
 class DataStoreManager:
@@ -96,7 +111,11 @@ class DataStoreManager:
             json.dump(basic_json_dict, json_file, indent=4)
 
 
-class SearchPipelineConfig(DataConfig, DataStoreManager):
+class SearchPipelineConfig(
+    DiffusionPipeline,
+    DataConfig,
+    DataStoreManager
+    ):
     """
     A class that provides configuration and utility methods for search pipelines.
 
@@ -358,3 +377,83 @@ class SearchPipelineConfig(DataConfig, DataStoreManager):
             if is_dataclass(output_class):
                 return list(output_class.__dataclass_fields__.keys())
         return []
+    
+
+    def SearchPipelineOutput(self,model_info) -> SearchPipelineOutput:
+        return SearchPipelineOutput(
+            model_path=model_info["model_path"],
+            load_type=model_info["load_type"],
+            repo_status=RepoStatus(**model_info["repo_status"]),
+            model_status=ModelStatus(**model_info["model_status"])
+        )
+
+
+    def get_keyword_types(
+            self,
+            keyword
+            ):
+        status = {
+            "model_format": None,
+            "loading_method": None,
+            "type": {
+                "search_word":False,
+                "hf_url": False,
+                "hf_repo": False,
+                "civitai_url": False,
+                "local": False,
+                },
+            "extra_type": {
+                "url": False,
+                "missing_model_index":None,
+                },
+            }
+        
+        status["extra_type"]["url"] = bool(re.match(r"^(https?)://", keyword))
+
+        if os.path.isfile(keyword):
+            status["type"]["local"] = True
+            status["model_format"] = "single_file"
+            status["loading_method"] = "from_single_file"
+
+        elif os.path.isdir(keyword):
+            status["type"]["local"] = True
+            status["model_format"] = "diffusers"
+            status["loading_method"] = "from_pretrained"
+            if os.path.exists(os.path.join(keyword, "model_index.json")):
+                status["extra_type"]["missing_model_index"] = True
+        
+        elif keyword.startswith("https://civitai.com/"):
+            status["type"]["civitai_url"] = True
+            status["model_format"] = "single_file"
+            status["loading_method"] = None
+
+        elif any(keyword.startswith(prefix) for prefix in VALID_URL_PREFIXES):
+            repo_id,weights_name = _extract_repo_id_and_weights_name(keyword)
+            if weights_name:
+                status["type"]["hf_url"] = True
+                status["model_format"] = "single_file"
+                status["loading_method"] = "from_single_file"
+            else:
+                status["type"]["hf_repo"] = True
+                status["model_format"] = "diffusers"
+                status["loading_method"] = "from_pretrained"
+
+        elif re.match(r"^[^/]+/[^/]+$", keyword):
+            status["type"]["hf_repo"] = True
+            status["model_format"] = "diffusers"
+            status["loading_method"] = "from_pretrained"
+        
+        else:
+            status["type"]["search_word"] = True
+            status["model_format"] = None
+            status["loading_method"] = None
+        
+        return status
+
+    def scan_dir(self, path):
+        ext = ['.safetensors']
+        for entry in os.scandir(path):
+            if entry.is_dir():
+                yield from self.scan_dir(entry.path)
+            elif entry.is_file() and entry.name.endswith(tuple(ext)):
+                yield os.path.abspath(entry.path)    

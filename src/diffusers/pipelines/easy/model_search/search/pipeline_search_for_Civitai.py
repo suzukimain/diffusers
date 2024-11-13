@@ -3,9 +3,18 @@ import requests
 from requests import HTTPError
 from tqdm.auto import tqdm
 
+from .....utils import logging
 from .....loaders.single_file_utils import is_valid_url
-from ..search_utils.search_pipeline_utils import SearchPipelineConfig
-from ..search_utils.model_search_data_classes import ModelData
+
+from ..search_utils import (
+    SearchPipelineConfig,
+    SearchPipelineOutput,
+    RepoStatus,
+    ModelStatus
+    )
+
+
+logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 class CivitaiSearchPipeline(SearchPipelineConfig):
@@ -18,9 +27,7 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
         chunk_size (int): Chunk size.
 
     Methods:
-        __call__(*args, **kwds): Returns model data.
-        run_civitai_search(): Generates model data.
-        civitai_model_set(search_word, auto, model_type, download, civitai_token, skip_error, include_hugface):
+        for_civitai(search_word, auto, model_type, download, civitai_token, skip_error, include_hugface):
             Downloads a model from Civitai.
         civitai_security_check(value): Performs a security check.
         requests_civitai(query, auto, model_type, civitai_token, include_hugface): Retrieves models from Civitai.
@@ -38,22 +45,12 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
     def __init__(self):
         super().__init__()
 
-
-    def __call__(self,**keywords):
-        return self.civitai_model_set(**keywords)
-
-
-    def civitai_model_set(
+    
+    def search_for_civitai(
         self,
         search_word,
-        auto,
-        model_type,
-        download=True,
-        civitai_token=None,
-        skip_error=True,
-        include_hugface=True,
-        include_params=False,
-    ):
+        **kwargs
+    ) -> SearchPipelineOutput:
         """
         Downloads a model from Civitai.
 
@@ -65,8 +62,34 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
         - include_params (bool): Whether to include parameters in the returned data.
 
         Returns:
-        - ModelData: Model data if include_params is True, otherwise model path.
+        - SearchPipelineOutput
         """
+        auto = kwargs.pop("auto", True)
+        model_type = kwargs.pop("model_type", "Checkpoint")
+        download = kwargs.pop("download", False)
+        civitai_token = kwargs.pop("civitai_token", None)
+        include_params = kwargs.pop("include_params", False)
+        include_hugface = kwargs.pop("include_hugface",True)
+        skip_error = kwargs.pop("skip_error", True)
+
+        model_info = {
+            "model_path" : "",
+            "load_type" : "",
+            "repo_status":{
+                "repo_name":"",
+                "repo_id":"",
+                "version_id":""
+                },
+            "model_status":{
+                "search_word" : "",
+                "download_url": "",
+                "filename":"",
+                "file_id": "",
+                "fp": "",
+                "local" : False,
+                "single_file" : False
+                },
+            }
 
         state = self.requests_civitai(
             query=search_word,
@@ -91,36 +114,40 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
         files_list = self.version_select_civitai(state=dict_of_civitai_repo, auto=auto)
 
         file_status_dict = self.file_select_civitai(state_list=files_list, auto=auto)
+        
         model_download_url = file_status_dict["download_url"]
-        self.model_data["repo_status"]["repo_name"] = dict_of_civitai_repo["repo_name"]
-        self.model_data["repo_status"]["repo_id"] = dict_of_civitai_repo["repo_id"]
-        self.model_data["repo_status"]["version_id"] = files_list["id"]
-        self.model_data["model_status"]["download_url"] = model_download_url
-        self.model_data["model_status"]["filename"] = file_status_dict["filename"]
-        self.model_data["model_status"]["file_id"] = file_status_dict["file_id"]
-        self.model_data["model_status"]["fp"] = file_status_dict["fp"]
-        self.model_data["model_status"]["file_format"] = file_status_dict["file_format"]
-        self.model_data["model_status"]["filename"] = file_status_dict["filename"]
-        self.model_data["model_status"]["single_file"] = True
+        model_info["repo_status"]["repo_name"] = dict_of_civitai_repo["repo_name"]
+        model_info["repo_status"]["repo_id"] = dict_of_civitai_repo["repo_id"]
+        model_info["repo_status"]["version_id"] = files_list["id"]
+        model_info["model_status"]["download_url"] = model_download_url
+        model_info["model_status"]["filename"] = file_status_dict["filename"]
+        model_info["model_status"]["file_id"] = file_status_dict["file_id"]
+        model_info["model_status"]["fp"] = file_status_dict["fp"]
+        model_info["model_status"]["file_format"] = file_status_dict["file_format"]
+        model_info["model_status"]["filename"] = file_status_dict["filename"]
+        model_info["model_status"]["single_file"] = True
         if download:
             model_save_path = self.civitai_save_path()
-            self.model_data["model_path"] = model_save_path
-            self.model_data["load_type"] = "from_single_file"
+            model_info["model_path"] = model_save_path
+            model_info["load_type"] = "from_single_file"
             self.download_model(
                 url=model_download_url,
                 save_path=model_save_path,
                 civitai_token=civitai_token,
             )
         else:
-            self.model_data["model_path"] = self.model_data["model_status"][
-                "download_url"
-            ]
-            self.model_data["load_type"] = ""
-        
-        if include_params:
-            return ModelData(**self.model_data)
+            model_info["model_path"] = model_info["model_status"]["download_url"]
+            model_info["load_type"] = ""
+    
+        if not include_params:
+            return model_info["model_path"]
         else:
-            return self.model_data["model_path"]
+            return SearchPipelineOutput(
+                model_path=model_info["model_path"],
+                load_type=model_info["load_type"],
+                repo_status=RepoStatus(**model_info["repo_status"]),
+                model_status=ModelStatus(**model_info["model_status"])
+            )
 
 
     def civitai_security_check(self, value) -> int:
@@ -148,14 +175,13 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
 
 
     def requests_civitai(
-        self, query, auto, model_type, civitai_token=None, include_hugface=True
+        self, query, model_type, civitai_token=None
     ):
         """
         Retrieves models from Civitai.
 
         Parameters:
         - query: Search query string.
-        - auto: Auto-select flag.
         - model_type: Type of model to search for.
 
         Returns:
@@ -177,16 +203,14 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
             )
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            raise HTTPError(f"Could not get elements from the URL. {err}")
+            raise HTTPError(f"Could not get elements from the URL: {err}")
         else:
             try:
                 data = response.json()
             except AttributeError:
                 raise ValueError("Invalid JSON response")
 
-        items = data["items"]
-
-        for item in items:
+        for item in data["items"]:
             for model_ver in item["modelVersions"]:
                 files_list = []
                 for model_value in model_ver["files"]:
@@ -231,8 +255,7 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
                 }
 
                 if model_ver_list:
-                    state.append(state_dict)
-        return state
+                    yield state_dict
 
 
     def repo_select_civitai(
@@ -250,7 +273,7 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
         - dict: Selected repository information.
         """
         if not state:
-            self.logger.warning("No models were found in civitai.")
+            logger.warning("No models were found in civitai.")
             return {}
 
         elif auto:
@@ -332,12 +355,12 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
             open(save_path, "wb"),
             "write",
             miniters=1,
-            desc="Downloading model",
+            desc=os.path.basename(save_path),
             total=int(response.headers.get("content-length", 0)),
         ) as fout:
             for chunk in response.iter_content(chunk_size=self.chunk_size):
                 fout.write(chunk)
-        self.logger.info(f"Downloaded file saved to {save_path}")
+        logger.info(f"Downloaded file saved to {save_path}")
 
 
     def version_select_civitai(self, state, auto, recursive: bool = True):
@@ -365,7 +388,7 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
         if auto:
             result = max(ver_list, key=lambda x: x["downloadCount"])
             version_files_list = self.sort_by_version(result["files"])
-            self.model_data["repo_status"]["version_id"] = result["id"]
+            self.model_info["repo_status"]["version_id"] = result["id"]
             return version_files_list
         else:
             if recursive:
@@ -464,9 +487,9 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
         Returns:
         - str: Save path.
         """
-        repo_level_dir = str(self.model_data["repo_status"]["repo_id"])
-        file_version_dir = str(self.model_data["repo_status"]["version_id"])
-        save_file_name = str(self.model_data["model_status"]["filename"])
+        repo_level_dir = str(self.model_info["repo_status"]["repo_id"])
+        file_version_dir = str(self.model_info["repo_status"]["version_id"])
+        save_file_name = str(self.model_info["model_status"]["filename"])
         save_path = os.path.join(
             self.base_civitai_dir, repo_level_dir, file_version_dir, save_file_name
         )

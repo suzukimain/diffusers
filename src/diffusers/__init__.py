@@ -1,4 +1,4 @@
-__version__ = "0.31.0.dev0"
+__version__ = "0.32.0.dev0"
 
 from typing import TYPE_CHECKING
 
@@ -31,6 +31,7 @@ _import_structure = {
     "loaders": ["FromOriginalModelMixin"],
     "models": [],
     "pipelines": [],
+    "quantizers.quantization_config": ["BitsAndBytesConfig"],
     "schedulers": [],
     "utils": [
         "OptionalDependencyNotAvailable",
@@ -76,10 +77,13 @@ except OptionalDependencyNotAvailable:
 else:
     _import_structure["models"].extend(
         [
+            "AllegroTransformer3DModel",
             "AsymmetricAutoencoderKL",
             "AuraFlowTransformer2DModel",
             "AutoencoderKL",
+            "AutoencoderKLAllegro",
             "AutoencoderKLCogVideoX",
+            "AutoencoderKLMochi",
             "AutoencoderKLTemporalDecoder",
             "AutoencoderOobleck",
             "AutoencoderTiny",
@@ -99,6 +103,7 @@ else:
             "Kandinsky3UNet",
             "LatteTransformer3DModel",
             "LuminaNextDiT2DModel",
+            "MochiTransformer3DModel",
             "ModelMixin",
             "MotionAdapter",
             "MultiAdapter",
@@ -124,7 +129,6 @@ else:
             "VQModel",
         ]
     )
-
     _import_structure["optimization"] = [
         "get_constant_schedule",
         "get_constant_schedule_with_warmup",
@@ -156,6 +160,7 @@ else:
             "StableDiffusionMixin",
         ]
     )
+    _import_structure["quantizers"] = ["DiffusersQuantizer"]
     _import_structure["schedulers"].extend(
         [
             "AmusedScheduler",
@@ -236,6 +241,7 @@ except OptionalDependencyNotAvailable:
 else:
     _import_structure["pipelines"].extend(
         [
+            "AllegroPipeline",
             "AltDiffusionImg2ImgPipeline",
             "AltDiffusionPipeline",
             "AmusedImg2ImgPipeline",
@@ -257,6 +263,7 @@ else:
             "BlipDiffusionPipeline",
             "CivitaiSearchPipeline",
             "CLIPImageProjection",
+            "CogVideoXFunControlPipeline",
             "CogVideoXImageToVideoPipeline",
             "CogVideoXPipeline",
             "CogVideoXVideoToVideoPipeline",
@@ -308,6 +315,7 @@ else:
             "LuminaText2ImgPipeline",
             "MarigoldDepthPipeline",
             "MarigoldNormalsPipeline",
+            "MochiPipeline",
             "ModelSearchPipeline",
             "MusicLDMPipeline",
             "PaintByExamplePipeline",
@@ -482,7 +490,7 @@ except OptionalDependencyNotAvailable:
 
 
 else:
-    _import_structure["models.controlnet_flax"] = ["FlaxControlNetModel"]
+    _import_structure["models.controlnets.controlnet_flax"] = ["FlaxControlNetModel"]
     _import_structure["models.modeling_flax_utils"] = ["FlaxModelMixin"]
     _import_structure["models.unets.unet_2d_condition_flax"] = ["FlaxUNet2DConditionModel"]
     _import_structure["models.vae_flax"] = ["FlaxAutoencoderKL"]
@@ -540,6 +548,7 @@ else:
 
 if TYPE_CHECKING or DIFFUSERS_SLOW_IMPORT:
     from .configuration_utils import ConfigMixin
+    from .quantizers.quantization_config import BitsAndBytesConfig
 
     try:
         if not is_onnx_available():
@@ -556,10 +565,13 @@ if TYPE_CHECKING or DIFFUSERS_SLOW_IMPORT:
         from .utils.dummy_pt_objects import *  # noqa F403
     else:
         from .models import (
+            AllegroTransformer3DModel,
             AsymmetricAutoencoderKL,
             AuraFlowTransformer2DModel,
             AutoencoderKL,
+            AutoencoderKLAllegro,
             AutoencoderKLCogVideoX,
+            AutoencoderKLMochi,
             AutoencoderKLTemporalDecoder,
             AutoencoderOobleck,
             AutoencoderTiny,
@@ -579,6 +591,7 @@ if TYPE_CHECKING or DIFFUSERS_SLOW_IMPORT:
             Kandinsky3UNet,
             LatteTransformer3DModel,
             LuminaNextDiT2DModel,
+            MochiTransformer3DModel,
             ModelMixin,
             MotionAdapter,
             MultiAdapter,
@@ -634,6 +647,7 @@ if TYPE_CHECKING or DIFFUSERS_SLOW_IMPORT:
             ScoreSdeVePipeline,
             StableDiffusionMixin,
         )
+        from .quantizers import DiffusersQuantizer
         from .schedulers import (
             AmusedScheduler,
             CMStochasticIterativeScheduler,
@@ -696,6 +710,7 @@ if TYPE_CHECKING or DIFFUSERS_SLOW_IMPORT:
         from .utils.dummy_torch_and_transformers_objects import *  # noqa F403
     else:
         from .pipelines import (
+            AllegroPipeline,
             AltDiffusionImg2ImgPipeline,
             AltDiffusionPipeline,
             AmusedImg2ImgPipeline,
@@ -714,6 +729,7 @@ if TYPE_CHECKING or DIFFUSERS_SLOW_IMPORT:
             AudioLDMPipeline,
             AuraFlowPipeline,
             CLIPImageProjection,
+            CogVideoXFunControlPipeline,
             CogVideoXImageToVideoPipeline,
             CogVideoXPipeline,
             CogVideoXVideoToVideoPipeline,
@@ -764,6 +780,7 @@ if TYPE_CHECKING or DIFFUSERS_SLOW_IMPORT:
             LuminaText2ImgPipeline,
             MarigoldDepthPipeline,
             MarigoldNormalsPipeline,
+            MochiPipeline,
             MusicLDMPipeline,
             PaintByExamplePipeline,
             PIAPipeline,
@@ -900,7 +917,7 @@ if TYPE_CHECKING or DIFFUSERS_SLOW_IMPORT:
     except OptionalDependencyNotAvailable:
         from .utils.dummy_flax_objects import *  # noqa F403
     else:
-        from .models.controlnet_flax import FlaxControlNetModel
+        from .models.controlnets.controlnet_flax import FlaxControlNetModel
         from .models.modeling_flax_utils import FlaxModelMixin
         from .models.unets.unet_2d_condition_flax import FlaxUNet2DConditionModel
         from .models.vae_flax import FlaxAutoencoderKL

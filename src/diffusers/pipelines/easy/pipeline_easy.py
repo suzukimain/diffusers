@@ -115,6 +115,11 @@ from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput, StableDiffu
 from model_search import ModelSearchPipeline
 
 
+from .....utils import logging
+
+logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
+
 @dataclass
 class AutoPipe_data:
     """
