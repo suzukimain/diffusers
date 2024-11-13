@@ -88,7 +88,7 @@ class HFSearchPipeline(SearchPipelineConfig):
     
     def search_for_hf(
             self,
-            model_select,
+            search_word,
             auto,
             model_format,
             model_type,
@@ -99,7 +99,7 @@ class HFSearchPipeline(SearchPipelineConfig):
         
         model_path = ""
         model_name = self.model_name_search(
-            model_name=model_select,
+            model_name=search_word,
             auto_set=auto,
             model_format=model_format,
             include_civitai=include_civitai
