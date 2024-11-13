@@ -26,13 +26,13 @@ class SearchPipeline(
 
     def search_for_hubs(
             self,
-            seach_word: str,
+            search_word: str,
             **kwargs
             ) -> Union[str, SearchPipelineOutput]:
         """Search and retrieve model information from various sources.
 
         Args:
-            seach_word: The search term to find the model.
+            search_word: The search term to find the model.
             auto: Whether to automatically select the best match.
             download: Whether to download the model locally.
             model_type: Type of model (e.g., "Checkpoint", "LORA").
@@ -67,11 +67,11 @@ class SearchPipeline(
         
         self.single_file_only = True if "single_file" == model_format else False
 
-        self.model_info["model_status"]["search_word"] = seach_word
+        self.model_info["model_status"]["search_word"] = search_word
         self.model_info["model_status"]["local"] = True if download or local_file_only else False
 
         result = self.model_set(
-            model_select=seach_word,
+            model_select=search_word,
             auto=auto,
             download=download,
             model_format=model_format,
