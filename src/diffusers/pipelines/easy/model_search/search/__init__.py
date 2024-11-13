@@ -1,3 +1,3 @@
-from .pipeline_search_for_HuggingFace import HFSearchPipeline
-from .pipeline_search_for_civitai import CivitaiSearchPipeline
-from .pipeline_search_for_hub import ModelSearchPipeline
+from src.diffusers.pipelines.easy.model_search.search.pipeline_search_for_HuggingFace import HFSearchPipeline
+from src.diffusers.pipelines.easy.model_search.search.pipeline_search_for_civitai import CivitaiSearchPipeline
+from src.diffusers.pipelines.easy.model_search.search.pipeline_search_for_hub import ModelSearchPipeline
