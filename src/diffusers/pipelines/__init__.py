@@ -332,6 +332,7 @@ else:
         "HFSearchPipeline",
         "CivitaiSearchPipeline",
         "ModelSearchPipeline",
+        "EasyPipeline",
     ]
 try:
     if not is_onnx_available():
@@ -530,6 +531,7 @@ if TYPE_CHECKING or DIFFUSERS_SLOW_IMPORT:
             HFSearchPipeline,
             CivitaiSearchPipeline,
             ModelSearchPipeline,
+            EasyPipeline,
         )
         from .flux import (
             FluxControlNetImg2ImgPipeline,
@@ -670,6 +672,7 @@ if TYPE_CHECKING or DIFFUSERS_SLOW_IMPORT:
             HFSearchPipeline,
             CivitaiSearchPipeline,
             ModelSearchPipeline,
+            EasyPipeline,
         )
 
         try:
