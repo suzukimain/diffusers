@@ -30,11 +30,6 @@ from ..search_utils import (
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
-
-logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
-
-
-
 class HFSearchPipeline(SearchPipelineConfig):
     """
     Huggingface class is used to search and download models from Huggingface.

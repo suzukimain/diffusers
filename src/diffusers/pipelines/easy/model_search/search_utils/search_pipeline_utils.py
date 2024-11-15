@@ -17,7 +17,7 @@ from .....loaders.single_file_utils import (
     _extract_repo_id_and_weights_name
     )
 from .....utils.import_utils import is_natsort_available
-from .search_pipeline_data_classes import (
+from .pipeline_output import (
     DataConfig,
     RepoStatus,
     ModelStatus,
@@ -365,16 +365,6 @@ class SearchPipelineConfig(
             if is_dataclass(output_class):
                 return list(output_class.__dataclass_fields__.keys())
         return []
-    
-
-    def SearchPipelineOutput(self,model_info) -> SearchPipelineOutput:
-        return SearchPipelineOutput(
-            model_path=model_info["model_path"],
-            load_type=model_info["load_type"],
-            repo_status=RepoStatus(**model_info["repo_status"]),
-            model_status=ModelStatus(**model_info["model_status"])
-        )
-
 
     def get_keyword_types(
         self,
