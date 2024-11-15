@@ -1639,8 +1639,8 @@ class SearchPipeline(
       
         model_path = model_select
         file_path = ""
-        if model_select in self.model_dict:
-            model_path_to_check = self.model_dict[model_select]
+        if model_select in CUSTOM_SEARCH_KEY:
+            model_path_to_check = CUSTOM_SEARCH_KEY[model_select]
             _check_url = f"https://huggingface.co/{model_path_to_check}"
             if is_valid_url(_check_url):
                 model_select = model_path_to_check
