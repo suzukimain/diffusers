@@ -269,6 +269,7 @@ else:
             "CogVideoXVideoToVideoPipeline",
             "CogView3PlusPipeline",
             "CycleDiffusionPipeline",
+            "EasyPipeline",
             "FluxControlNetImg2ImgPipeline",
             "FluxControlNetInpaintPipeline",
             "FluxControlNetPipeline",
