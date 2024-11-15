@@ -1457,8 +1457,8 @@ class SearchPipeline(
             search_word: The search term to find the model.
             auto: Whether to automatically select the best match.
             download: Whether to download the model locally.
-            model_type: Type of model (e.g., "Checkpoint", "LORA").
-            model_format: Format of the model ("single_file", "diffusers", "all").
+            model_type: Type of model ("single_file", "diffusers", "all").
+            model_format: Format of the model (e.g., "Checkpoint", "LORA").
             branch: The repository branch to search in.
             priority_hub: Which model hub to prioritize ("huggingface" or "civitai").
             local_file_only: Whether to search only in local files.
@@ -1475,8 +1475,8 @@ class SearchPipeline(
         """
         auto = kwargs.pop("auto", True)
         download = kwargs.pop("download", False)
-        model_type = kwargs.pop("model_type", "single_file")
-        model_format = kwargs.pop("model_format", "Checkpoint")
+        model_type = kwargs.pop("model_type", "Checkpoint")
+        model_format = kwargs.pop("model_format","single_file" )
         branch = kwargs.pop("branch", "main")
         priority_hub = kwargs.pop("priority_hub", "huggingface")
         include_params = kwargs.pop("include_params", False)
