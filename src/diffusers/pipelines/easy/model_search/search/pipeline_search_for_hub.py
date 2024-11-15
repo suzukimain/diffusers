@@ -98,12 +98,19 @@ class SearchPipeline(
             )
 
     def File_search(
-            self,
-            search_word,
-            auto = True
-            ):
+        self,
+        search_word,
+        auto=True
+    ):
         """
-        only single file
+        Search for files based on the provided search word.
+
+        Args:
+            search_word (str): The search word for the file.
+            auto (bool, optional): Whether to enable auto mode. Defaults to True.
+
+        Yields:
+            str: The path of the found file.
         """
         closest_match = None
         closest_distance = float('inf')
@@ -127,6 +134,15 @@ class SearchPipeline(
     def user_select_file(self, search_word, result):
         """
         Allow user to select a file from the search results.
+
+        Args:
+            search_word (str): The search word for the file.
+
+        Returns:
+            str: The path of the selected file.
+
+        Raises:
+            FileNotFoundError: If no files are found.
         """
         search_results = list(self.File_search(search_word, auto=False))
         if not search_results:
@@ -150,33 +166,54 @@ class SearchPipeline(
     def calculate_distance(self, search_word, file_name):
         """
         Calculate the distance between the search word and the file name.
+
+        Args:
+            search_word (str): The search word.
+            file_name (str): The file name.
+
+        Returns:
+            int: The distance between the search word and the file name.
         """
         return sum(1 for a, b in zip(search_word, file_name) if a != b)  
 
 
     def model_set(
-            self,
-            model_select,
-            auto = True,
-            download = False,
-            model_format = "single_file",
-            model_type = "Checkpoint",
-            branch = "main",
-            priority_hub = "huggingface",
-            local_file_only = False,
-            civitai_token = None,
-            include_params = False
-            ):
+        self,
+        model_select,
+        auto=True,
+        download=False,
+        model_format="single_file",
+        model_type="Checkpoint",
+        branch="main",
+        priority_hub="hugface",
+        local_file_only=False,
+        civitai_token=None,
+        include_params=False
+    ):
         """
-        parameter:
-        model_format:
-            one of the following: "all","diffusers","single_file"
-        return:
-        if path_only is false
-        [model_path:str, {base_model_path: str,single_file: bool}]
-        """
+        Set the model based on the provided parameters.
 
-        if not model_type  in ["Checkpoint", "TextualInversion", "LORA", "Hypernetwork", "AestheticGradient", "Controlnet", "Poses"]:
+        Args:
+            model_select (str): The model selection criteria.
+            auto (bool, optional): Whether to enable auto mode. Defaults to True.
+            download (bool, optional): Whether to download the model. Defaults to False.
+            model_format (str, optional): The format of the model. Defaults to "single_file".
+            model_type (str, optional): The type of the model. Defaults to "Checkpoint".
+            branch (str, optional): The branch of the model. Defaults to "main".
+            priority_hub (str, optional): The priority hub. Defaults to "hugface".
+            local_file_only (bool, optional): Whether to search locally only. Defaults to False.
+            civitai_token (str, optional): The Civitai token. Defaults to None.
+            include_params (bool, optional): Whether to include parameters in the returned data. Defaults to False.
+
+        Returns:
+            ModelData or str: The model data if include_params is True, otherwise the model path.
+
+        Raises:
+            TypeError: If the model_type or model_format is invalid.
+            ValueError: If the specified repository could not be found.
+            FileNotFoundError: If the model_index.json file is not found.
+        """
+        if not model_type in ["Checkpoint", "TextualInversion", "LORA", "Hypernetwork", "AestheticGradient", "Controlnet", "Poses"]:
             raise TypeError(f'Wrong argument. Valid values are "Checkpoint", "TextualInversion", "LORA", "Hypernetwork", "AestheticGradient", "Controlnet", "Poses". What was passed on {model_type}')
         
         if not model_format in ["all","diffusers","single_file"]:
@@ -195,9 +232,9 @@ class SearchPipeline(
 
         if local_file_only:
             model_path = next(self.File_search(
-                search_word = model_select,
-                auto = auto
-                ))
+                search_word=model_select,
+                auto=auto
+            ))
             self.model_info["model_status"]["single_file"] = True
             self.model_info["model_path"] = model_path
             self.model_info["load_type"] = "from_single_file"
@@ -213,7 +250,7 @@ class SearchPipeline(
 
                 self.model_info["model_status"]["single_file"] = True
                 self.model_info["model_path"] = model_path
-                repo,file_name = self.repo_name_or_path(model_select)
+                repo, file_name = self.repo_name_or_path(model_select)
                 if file_name:
                     self.model_info["model_status"]["filename"] = file_name
                     self.model_info["model_status"]["single_file"] = True
@@ -225,13 +262,13 @@ class SearchPipeline(
 
         elif model_select.startswith("https://civitai.com/"):
             model_path = self.civitai_model_set(
-                    search_word=model_select,
-                    auto=auto,
-                    model_type=model_type,
-                    download=download,
-                    civitai_token=civitai_token,
-                    skip_error=False
-                    )
+                search_word=model_select,
+                auto=auto,
+                model_type=model_type,
+                download=download,
+                civitai_token=civitai_token,
+                skip_error=False
+            )
 
         elif os.path.isfile(model_select):
             model_path = model_select
@@ -241,7 +278,7 @@ class SearchPipeline(
             self.model_info["model_status"]["local"] = True
 
         elif os.path.isdir(model_select):
-            if os.path.exists(os.path.join(model_select,self.Config_file)):
+            if os.path.exists(os.path.join(model_select, self.Config_file)):
                 model_path = model_select
                 self.model_info["model_path"] = model_select
                 self.model_info["model_status"]["single_file"] = False
@@ -270,7 +307,7 @@ class SearchPipeline(
                     raise ValueError("Model not found")
                 elif file_path == "DiffusersFormat":
                     if download:
-                        model_path= self.run_hf_download(model_select)
+                        model_path = self.run_hf_download(model_select)
                     else:
                         model_path = model_select
 
@@ -278,7 +315,7 @@ class SearchPipeline(
                     self.model_info["load_type"] = "from_pretrained"
                     
                 else:
-                    hf_model_path=f"https://huggingface.co/{model_select}/blob/{branch}/{file_path}"
+                    hf_model_path = f"https://huggingface.co/{model_select}/blob/{branch}/{file_path}"
                     
                     if download:
                         model_path = self.run_hf_download(hf_model_path)
@@ -309,7 +346,7 @@ class SearchPipeline(
                         download=download,
                         civitai_token=civitai_token,
                         include_hugface=False
-                        )
+                    )
                     if not model_path:
                         raise ValueError("No models matching the criteria were found.")
                 
@@ -321,11 +358,11 @@ class SearchPipeline(
                     download=download,
                     civitai_token=civitai_token,
                     include_hugface=True
-                    )
+                )
                 if not model_path:
                     model_path = self.hf_model_set(
-                        model_select = model_select,
-                        auto = auto,
+                        model_select=model_select,
+                        auto=auto,
                         model_format=model_format,
                         model_type=model_type,
                         download=download,
@@ -336,9 +373,9 @@ class SearchPipeline(
                 
         self.model_info["model_path"] = model_path
         self.update_json_dict(
-            key = "model_path",
-            value = model_path
-            )       
+            key="model_path",
+            value=model_path
+        )       
         if include_params:
             return self.model_info
         else:

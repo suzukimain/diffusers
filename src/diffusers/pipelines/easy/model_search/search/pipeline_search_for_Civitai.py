@@ -45,8 +45,15 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
     def __init__(self):
         super().__init__()
 
-    
-    def search_for_civitai(
+
+    def __call__(
+        self,
+        **keywords
+    ):
+        return self.civitai_model_set(**keywords)
+
+
+    def civitai_model_set(
         self,
         search_word,
         **kwargs
@@ -150,7 +157,10 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
             )
 
 
-    def civitai_security_check(self, value) -> int:
+    def civitai_security_check(
+        self,
+        value
+    ) -> int:
         """
         Performs a security check.
 
@@ -175,7 +185,12 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
 
 
     def requests_civitai(
-        self, query, model_type, civitai_token=None
+        self,
+        query,
+        auto,
+        model_type,
+        civitai_token=None,
+        include_hugface=True
     ):
         """
         Retrieves models from Civitai.
@@ -259,7 +274,11 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
 
 
     def repo_select_civitai(
-        self, state: list, auto: bool, recursive: bool = True, include_hugface: bool = True
+        self,
+        state: list,
+        auto: bool,
+        recursive: bool = True,
+        include_hugface: bool = True
     ):
         """
         Selects a repository from Civitai.
@@ -327,7 +346,12 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
                     print(f"\033[33mPlease enter the numbers 1~{max_number}\033[0m")
 
 
-    def download_model(self, url, save_path, civitai_token=None):
+    def download_model(
+        self,
+        url,
+        save_path,
+        civitai_token=None
+    ):
         """
         Downloads a model.
 
@@ -363,7 +387,12 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
         logger.info(f"Downloaded file saved to {save_path}")
 
 
-    def version_select_civitai(self, state, auto, recursive: bool = True):
+    def version_select_civitai(
+        self,
+        state,
+        auto,
+        recursive: bool = True
+    ):
         """
         Selects a model version from Civitai.
 
@@ -431,7 +460,12 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
                     print(f"\033[33mPlease enter the numbers 1~{max_number}\033[0m")
 
 
-    def file_select_civitai(self, state_list, auto, recursive: bool = True):
+    def file_select_civitai(
+        self,
+        state_list,
+        auto,
+        recursive: bool = True
+    ):
         """
         Selects a file to download.
 
@@ -480,7 +514,9 @@ class CivitaiSearchPipeline(SearchPipelineConfig):
             return file_dict
 
 
-    def civitai_save_path(self) -> os.PathLike:
+    def civitai_save_path(
+        self
+    ) -> os.PathLike:
         """
         Sets the save path.
 
