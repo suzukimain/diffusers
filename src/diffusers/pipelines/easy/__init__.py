@@ -22,10 +22,7 @@ except OptionalDependencyNotAvailable:
     _dummy_objects.update(get_objects_from_module(dummy_torch_and_transformers_objects))
 else:
     _import_structure["pipeline_easy"] = ["EasyPipeline"]
-    _import_structure["search_for_Civitai"] = ["CivitaiSearchPipeline"]
     _import_structure["search_for_hubs"] = ["ModelSearchPipeline"]
-    _import_structure["search_for_HuggingFace"] = ["HFSearchPipeline"]
-
 
 if TYPE_CHECKING or DIFFUSERS_SLOW_IMPORT:
     try:
@@ -36,9 +33,7 @@ if TYPE_CHECKING or DIFFUSERS_SLOW_IMPORT:
         from ...utils.dummy_torch_and_transformers_objects import *
     else:
         from .pipeline_easy import EasyPipeline
-        from .search_for_Civitai import CivitaiSearchPipeline
         from .search_for_hubs import ModelSearchPipeline
-        from .search_for_HuggingFace import HFSearchPipeline
 else:
     import sys
 

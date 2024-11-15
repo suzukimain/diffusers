@@ -329,10 +329,8 @@ else:
     ]
     
     _import_structure["easy"] = [
-        "HFSearchPipeline",
-        "CivitaiSearchPipeline",
-        "ModelSearchPipeline",
         "EasyPipeline",
+        "ModelSearchPipeline",
     ]
 try:
     if not is_onnx_available():
@@ -528,10 +526,8 @@ if TYPE_CHECKING or DIFFUSERS_SLOW_IMPORT:
             VQDiffusionPipeline,
         )
         from .easy import(
-            HFSearchPipeline,
-            CivitaiSearchPipeline,
-            ModelSearchPipeline,
             EasyPipeline,
+            ModelSearchPipeline,
         )
         from .flux import (
             FluxControlNetImg2ImgPipeline,
@@ -669,8 +665,6 @@ if TYPE_CHECKING or DIFFUSERS_SLOW_IMPORT:
             WuerstchenPriorPipeline,
         )
         from .easy import (
-            HFSearchPipeline,
-            CivitaiSearchPipeline,
             ModelSearchPipeline,
             EasyPipeline,
         )
