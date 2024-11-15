@@ -3,10 +3,10 @@ import requests
 from requests import HTTPError
 from tqdm.auto import tqdm
 
-from .....utils import logging
-from .....loaders.single_file_utils import is_valid_url
+from ...utils import logging
+from ...loaders.single_file_utils import is_valid_url
 
-from ..search_utils import (
+from .search_pipeline_utils import (
     SearchPipelineConfig,
     SearchPipelineOutput,
     RepoStatus,

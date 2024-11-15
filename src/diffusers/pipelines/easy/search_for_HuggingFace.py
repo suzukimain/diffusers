@@ -10,15 +10,15 @@ from huggingface_hub import (
     )
 
 
-from .....utils import logging
-from ....pipeline_utils import DiffusionPipeline
-from .....utils import logging
-from .....loaders.single_file_utils import (
+from ...utils import logging
+from ..pipeline_utils import DiffusionPipeline
+from ...utils import logging
+from ...loaders.single_file_utils import (
     VALID_URL_PREFIXES,
     is_valid_url
     )
 
-from ..search_utils import (
+from .search_utils import (
     SearchPipelineConfig,
     SearchPipelineOutput,
     RepoStatus,

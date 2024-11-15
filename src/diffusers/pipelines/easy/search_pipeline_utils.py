@@ -9,14 +9,14 @@ from dataclasses import (
     dataclass,
     field
     )
-from ..... import pipelines
-from ....pipeline_utils import DiffusionPipeline
-from .....loaders.single_file_utils import (
+from ... import pipelines
+from ..pipeline_utils import DiffusionPipeline
+from ...loaders.single_file_utils import (
     VALID_URL_PREFIXES,
     is_valid_url,
     _extract_repo_id_and_weights_name
     )
-from .....utils.import_utils import is_natsort_available
+from ...utils.import_utils import is_natsort_available
 from .pipeline_output import (
     DataConfig,
     RepoStatus,

@@ -1,13 +1,13 @@
 import os
 from typing import Union
 
-from .....utils import logging
-from .....loaders.single_file_utils import is_valid_url
+from ...utils import logging
+from ...loaders.single_file_utils import is_valid_url
 
 from huggingface_hub import login
-from .pipeline_search_for_HuggingFace import HFSearchPipeline
-from .pipeline_search_for_Civitai import CivitaiSearchPipeline
-from ..search_utils import (
+from .search_for_HuggingFace import HFSearchPipeline
+from .search_for_Civitai import CivitaiSearchPipeline
+from .search_utils import (
     RepoStatus,
     ModelStatus,
     SearchPipelineOutput,
