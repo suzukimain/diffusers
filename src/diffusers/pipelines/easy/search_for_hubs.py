@@ -1748,7 +1748,7 @@ class SearchPipeline(
                 
         else:
             if priority_hub == "huggingface":
-                model_path = self.hf_model_set(
+                model_path = self.search_for_hf(
                     model_select=model_select,
                     auto=auto,
                     model_format=model_format,
@@ -1778,7 +1778,7 @@ class SearchPipeline(
                     include_hugface=True
                 )
                 if not model_path:
-                    model_path = self.hf_model_set(
+                    model_path = self.search_for_hf(
                         model_select=model_select,
                         auto=auto,
                         model_format=model_format,
