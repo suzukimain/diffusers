@@ -389,9 +389,9 @@ class SearchPipelineConfig(
 
 
     def get_keyword_types(
-            self,
-            keyword
-            ):
+        self,
+        keyword
+    ):
         status = {
             "model_format": None,
             "loading_method": None,
@@ -419,7 +419,7 @@ class SearchPipelineConfig(
             status["type"]["local"] = True
             status["model_format"] = "diffusers"
             status["loading_method"] = "from_pretrained"
-            if os.path.exists(os.path.join(keyword, "model_index.json")):
+            if not os.path.exists(os.path.join(keyword, "model_index.json")):
                 status["extra_type"]["missing_model_index"] = True
         
         elif keyword.startswith("https://civitai.com/"):
