@@ -372,10 +372,6 @@ class SearchPipeline(
                         raise ValueError("No models matching the criteria were found.")
                 
         self.model_info["model_path"] = model_path
-        self.update_json_dict(
-            key="model_path",
-            value=model_path
-        )       
         if include_params:
             return self.model_info
         else:

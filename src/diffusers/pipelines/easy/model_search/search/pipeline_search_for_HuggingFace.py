@@ -571,23 +571,12 @@ class HFSearchPipeline(SearchPipelineConfig):
 
         original_repo_model_list = self.hf_models(model_name=model_name, limit=limit)
 
-        previous_model_selection = self.check_func_hist(
-            key="hf_model_name", return_value=True
-        )
-        models_to_exclude: list = self.check_func_hist(
-            key="dangerous_model", return_value=True, missing_value=[]
-        )
-
         repo_model_list = [
-            model
-            for model in original_repo_model_list
-            if model["model_id"] not in models_to_exclude
+            model for model in original_repo_model_list
         ]
 
         if not auto_set:
             print("\033[34mThe following model paths were found\033[0m")
-            if previous_model_selection is not None:
-                print(f"\033[34mPrevious Choice: {previous_model_selection}\033[0m")
             if include_civitai:
                 print("\033[34m0.Search civitai\033[0m")
             for i, (model_dict) in enumerate(repo_model_list, 1):
@@ -623,11 +612,6 @@ class HFSearchPipeline(SearchPipelineConfig):
                     security_risk = self.model_data_get(path=choice_path)["security_risk"]
                     if security_risk == 2:
                         print("\033[31mThis model has a security problem。\033[0m")
-                        if choice_path not in models_to_exclude:
-                            models_to_exclude.append(choice_path)
-                        self.update_json_dict(
-                            key="dangerous_model", value=models_to_exclude
-                        )
                         continue
                     else:
                         if security_risk == 1:
@@ -721,12 +705,6 @@ class HFSearchPipeline(SearchPipelineConfig):
         file_value = self.list_safe_sort(file_value)
         if len(file_value) >= self.num_prints:
             start_number = "1"
-            choice_history = self.check_func_hist(key=check_key, return_value=True)
-            if choice_history:
-                if choice_history > self.num_prints + 1:
-                    choice_history = self.num_prints + 1
-                print(f"\033[33m＊Previous number: {choice_history}\033[0m")
-
             if self.diffuser_model:
                 start_number = "0"
                 print("\033[34m0.Use Diffusers format model\033[0m")
@@ -743,27 +721,18 @@ class HFSearchPipeline(SearchPipelineConfig):
                     print("\033[33mOnly natural numbers are valid\033[0m")
                     continue
                 if self.diffuser_model and choice == 0:
-                    self.choice_number = -1
-                    self.update_json_dict(key=check_key, value=choice)
                     return "DiffusersFormat"
 
                 elif choice == (self.num_prints + 1):
                     break
                 elif 1 <= choice <= self.num_prints:
                     choice_path = file_value[choice - 1]
-                    self.choice_number = choice
-                    self.update_json_dict(key=check_key, value=choice)
                     return choice_path
                 else:
                     print(
                         f"\033[33mPlease enter numbers from 1~{self.num_prints}\033[0m"
                     )
             print("\n\n")
-
-        choice_history = self.check_func_hist(key=check_key, return_value=True)
-        if choice_history:
-            print(f"\033[33m＊Previous number: {choice_history}\033[0m")
-
         start_number = "1"
         if self.diffuser_model:
             start_number = "0"
@@ -780,14 +749,10 @@ class HFSearchPipeline(SearchPipelineConfig):
                 print("\033[33mOnly natural numbers are valid\033[0m")
             else:
                 if self.diffuser_model and choice == 0:
-                    self.choice_number = -1
-                    self.update_json_dict(key=check_key, value=choice)
                     return "DiffusersFormat"
 
                 if 1 <= choice <= len(file_value):
                     choice_path = file_value[choice - 1]
-                    self.choice_number = choice
-                    self.update_json_dict(key=check_key, value=choice)
                     return choice_path
                 else:
                     print(

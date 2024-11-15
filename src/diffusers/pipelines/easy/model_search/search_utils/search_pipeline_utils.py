@@ -6,7 +6,8 @@ import importlib
 import difflib
 from dataclasses import (
     is_dataclass,
-    dataclass
+    dataclass,
+    field
     )
 from ..... import pipelines
 from ....pipeline_utils import DiffusionPipeline
@@ -33,88 +34,75 @@ TASK_KEY_MAPPING = {
 }
 
 
+CUSTOM_SEARCH_KEY = {
+    "sd" : "stabilityai/stable-diffusion-2-1",
+    }
 
-class DataStoreManager:
+
+CONFIG_FILE_LIST = [
+    "preprocessor_config.json",
+    "config.json",
+    "model.fp16.safetensors",
+    "model.safetensors",
+    "pytorch_model.bin",
+    "pytorch_model.fp16.bin",
+    "scheduler_config.json",
+    "special_tokens_map.json",
+    "tokenizer_config.json",
+    "vocab.json",
+    "diffusion_pytorch_model.bin",
+    "diffusion_pytorch_model.fp16.bin",
+    "diffusion_pytorch_model.fp16.safetensors",
+    "diffusion_pytorch_model.non_ema.bin",
+    "diffusion_pytorch_model.non_ema.safetensors",
+    "diffusion_pytorch_model.safetensors",
+    "safety_checker/model.safetensors",
+    "unet/diffusion_pytorch_model.safetensors",
+    "vae/diffusion_pytorch_model.safetensors",
+    "text_encoder/model.safetensors",
+    "unet/diffusion_pytorch_model.fp16.safetensors",
+    "text_encoder/model.fp16.safetensors",
+    "vae/diffusion_pytorch_model.fp16.safetensors",
+    "safety_checker/model.fp16.safetensors",
+    "safety_checker/model.ckpt",
+    "unet/diffusion_pytorch_model.ckpt",
+    "vae/diffusion_pytorch_model.ckpt",
+    "text_encoder/model.ckpt",
+    "text_encoder/model.fp16.ckpt",
+    "safety_checker/model.fp16.ckpt",
+    "unet/diffusion_pytorch_model.fp16.ckpt",
+    "vae/diffusion_pytorch_model.fp16.ckpt"
+]
+
+EXTENSION =  [".safetensors", ".ckpt",".bin"]
+
+@dataclass
+class DataConfig:
     """
-    A class to manage the storage and retrieval of data in a JSON file.
+    Configuration class for data handling in the model search pipeline.
 
     Attributes:
-        base_config_json (str): The path to the JSON config file.
-
-    Methods:
-        check_func_hist(key, **kwargs): Check and optionally update the history of a given element.
-        get_json_dict(): Retrieve the JSON dictionary from the config file.
-        update_json_dict(key, value): Update the JSON dictionary with a new key-value pair.
+    - config_file: Path to the configuration file.
+    - model_data: Dictionary containing model data.
+    - model_info: Dictionary containing model information.
+    - num_prints: Number of times to print the information.
+    - force_download: Flag to force downloading the files.
+    - single_file_only: Flag to handle only a single file.
+    - hf_token: Hugging Face token for authentication.
     """
-    base_config_json = "/tmp/diffusers_easy_pipeline_config.json"
+    config_file: str = "model_index.json"
+    model_data: dict = field(default_factory=dict)
+    model_info: dict = field(default_factory=dict)
+    num_prints: int = 20
+    force_download: bool = False
+    single_file_only: bool = False
+    hf_token: str = None
 
-    def __init__(self):
-        pass
-
-    def check_func_hist(self, key, **kwargs):
-        """
-        Check and optionally update the history of a given element.
-
-        Args:
-            key (str): Specific key to look up in the dictionary.
-            **kwargs: Keyword arguments for additional options.
-                - update (bool): Whether to update the dictionary. Default is True.
-                - return_value (bool): Whether to return the element value. Default is False.
-                - value (Any): Value to be matched or updated in the dictionary.
-                - missing_value (Any): Returns the value if it does not exist.
-
-        Returns:
-            Any: The historical value if `return_value` is True, or a boolean indicating
-                 if the value matches the historical value.
-        """
-        value = kwargs.pop("value", None)
-        update = kwargs.pop("update", False if value is None else True)
-        return_value = kwargs.pop("return_value", True if "value" in kwargs else False)
-        missing_value = kwargs.pop("missing_value", None)
-
-        hist_value = self.get_json_dict().get(key, None)
-        if update:
-            self.update_json_dict(key, value)
-
-        if return_value:
-            return hist_value or missing_value
-        else:
-            return hist_value == value
-
-    def get_json_dict(self) -> dict:
-        """
-        Retrieve the JSON dictionary from the config file.
-
-        Returns:
-            dict: The JSON dictionary.
-        """
-        config_dict = {}
-        if os.path.isfile(self.base_config_json):
-            try:
-                with open(self.base_config_json, "r") as basic_json:
-                    config_dict = json.load(basic_json)
-            except json.JSONDecodeError:
-                pass
-        return config_dict
-
-    def update_json_dict(self, key, value):
-        """
-        Update the JSON dictionary with a new key-value pair.
-
-        Args:
-            key (str): The key to update.
-            value (Any): The value to associate with the key.
-        """
-        basic_json_dict = self.get_json_dict()
-        basic_json_dict[key] = value
-        with open(self.base_config_json, "w") as json_file:
-            json.dump(basic_json_dict, json_file, indent=4)
 
 
 class SearchPipelineConfig(
     DiffusionPipeline,
-    DataConfig,
-    DataStoreManager
+    DataConfig
     ):
     """
     A class that provides configuration and utility methods for search pipelines.
