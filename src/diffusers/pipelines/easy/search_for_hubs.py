@@ -845,7 +845,7 @@ class HFSearchPipeline:
         else:
             raise ValueError("No available file was found. Please check the name.")
         if file_value:
-            file_value = self.sort_by_version(file_value)
+            file_value = sort_by_version(file_value)
             if not auto:
                 print("\033[34mThe following model files were found\033[0m")
                 choice_path = self.file_name_set_sub(search_word, file_value)
@@ -1265,7 +1265,7 @@ class CivitaiSearchPipeline:
 
         if auto:
             result = max(ver_list, key=lambda x: x["downloadCount"])
-            version_files_list = self.sort_by_version(result["files"])
+            version_files_list = sort_by_version(result["files"])
             self.model_info["repo_status"]["version_id"] = result["id"]
             return version_files_list
         else:
