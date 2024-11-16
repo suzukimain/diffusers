@@ -125,6 +125,10 @@ class HFSearchPipeline:
         download = kwargs.pop("download", False)
         include_params = kwargs.pop("include_params", False)
         include_civitai = kwargs.pop("include_civitai", True)
+
+        self.single_file_only = True if "single_file" == model_format else False
+        self.model_info["model_status"]["search_word"] = search_word
+        self.model_info["model_status"]["local"] = True if download else False
         
         model_path = ""
         model_name = self.model_name_search(
@@ -913,6 +917,7 @@ class CivitaiSearchPipeline:
         """
         auto = kwargs.pop("auto", True)
         model_type = kwargs.pop("model_type", "Checkpoint")
+        model_format = kwargs.pop("model_format", "single_file")
         download = kwargs.pop("download", False)
         civitai_token = kwargs.pop("civitai_token", None)
         include_params = kwargs.pop("include_params", False)
@@ -937,6 +942,11 @@ class CivitaiSearchPipeline:
                 "single_file" : False
                 },
             }
+        
+        self.single_file_only = True if "single_file" == model_format else False
+
+        self.model_info["model_status"]["search_word"] = search_word
+        self.model_info["model_status"]["local"] = True if download else False
 
         state = self.requests_civitai(
             query=search_word,
