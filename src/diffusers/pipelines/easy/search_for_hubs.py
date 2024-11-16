@@ -119,13 +119,14 @@ class HFSearchPipeline:
     def search_for_hf(
             self,
             search_word,
-            auto,
-            model_format,
-            model_type,
-            download,
-            include_civitai=True,
-            include_params=False
+            **kwargs
             ):
+        auto = kwargs.pop("auto", True)
+        model_format = kwargs.pop("model_format", "single_file")
+        model_type = kwargs.pop("model_type", "Checkpoint")
+        download = kwargs.pop("download", False)
+        include_params = kwargs.pop("include_params", False)
+        include_civitai = kwargs.pop("include_civitai", True)
         
         model_path = ""
         model_name = self.model_name_search(
@@ -942,10 +943,8 @@ class CivitaiSearchPipeline:
 
         state = self.requests_civitai(
             query=search_word,
-            auto=auto,
             model_type=model_type,
             civitai_token=civitai_token,
-            include_hugface=include_hugface,
         )
         if not state:
             if skip_error:
@@ -1029,10 +1028,8 @@ class CivitaiSearchPipeline:
     def requests_civitai(
         self,
         query,
-        auto,
         model_type,
         civitai_token=None,
-        include_hugface=True
     ):
         """
         Retrieves models from Civitai.
