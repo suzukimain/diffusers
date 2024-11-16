@@ -895,14 +895,7 @@ class CivitaiSearchPipeline:
         super().__init__()
 
 
-    def __call__(
-        self,
-        **keywords
-    ):
-        return self.civitai_model_set(**keywords)
-
-
-    def civitai_model_set(
+    def search_for_civitai(
         self,
         search_word,
         **kwargs
@@ -967,14 +960,14 @@ class CivitaiSearchPipeline:
         if not dict_of_civitai_repo:
             return None
 
-        files_list = self.version_select_civitai(state=dict_of_civitai_repo, auto=auto)
-
+        version_data = self.version_select_civitai(state=dict_of_civitai_repo, auto=auto)
+        files_list = version_data["files"]
         file_status_dict = self.file_select_civitai(state_list=files_list, auto=auto)
         
         model_download_url = file_status_dict["download_url"]
         model_info["repo_status"]["repo_name"] = dict_of_civitai_repo["repo_name"]
         model_info["repo_status"]["repo_id"] = dict_of_civitai_repo["repo_id"]
-        model_info["repo_status"]["version_id"] = files_list["id"]
+        model_info["repo_status"]["version_id"] = version_data["id"]
         model_info["model_status"]["download_url"] = model_download_url
         model_info["model_status"]["filename"] = file_status_dict["filename"]
         model_info["model_status"]["file_id"] = file_status_dict["file_id"]
@@ -1094,15 +1087,15 @@ class CivitaiSearchPipeline:
                             "download_url": model_value["downloadUrl"],
                         }
                         files_list.append(file_status)
-
-                version_dict = {
-                    "id": model_ver["id"],
-                    "name": model_ver["name"],
-                    "downloadCount": model_ver["stats"]["downloadCount"],
-                    "files": files_list,
-                }
-
+                
                 if files_list:
+                    sorted_files_list = sort_by_version(files_list)
+                    version_dict = {
+                        "id": model_ver["id"],
+                        "name": model_ver["name"],
+                        "downloadCount": model_ver["stats"]["downloadCount"],
+                        "files": sorted_files_list,
+                    }
                     model_ver_list.append(version_dict)
 
             if all(
@@ -1265,9 +1258,9 @@ class CivitaiSearchPipeline:
 
         if auto:
             result = max(ver_list, key=lambda x: x["downloadCount"])
-            version_files_list = sort_by_version(result["files"])
-            self.model_info["repo_status"]["version_id"] = result["id"]
-            return version_files_list
+            #version_files_list = sort_by_version(result["files"])
+            #self.model_info["repo_status"]["version_id"] = result["id"]
+            return result
         else:
             if recursive:
                 print("\n\n\033[34mThe following model paths were found\033[0m")
@@ -1304,7 +1297,7 @@ class CivitaiSearchPipeline:
                     )
                 elif 1 <= choice <= max_number:
                     return_dict = ver_list[choice - 1]
-                    return return_dict["files"]
+                    return return_dict
                 else:
                     print(f"\033[33mPlease enter the numbers 1~{max_number}\033[0m")
 
@@ -1622,7 +1615,7 @@ class SearchPipeline(
 
 
         elif search_word.startswith("https://civitai.com/"):
-            model_path = self.civitai_model_set(
+            model_path = self.search_for_civitai(
                 search_word=search_word,
                 auto=auto,
                 model_type=model_type,
@@ -1700,7 +1693,7 @@ class SearchPipeline(
                     include_civitai=True
                     )
                 if model_path is None:
-                    model_path = self.civitai_model_set(
+                    model_path = self.search_for_civitai(
                         search_word=search_word,
                         auto=auto,
                         model_type=model_type,
@@ -1712,7 +1705,7 @@ class SearchPipeline(
                         raise ValueError("No models matching the criteria were found.")
                 
             else:
-                model_path = self.civitai_model_set(
+                model_path = self.search_for_civitai(
                     search_word=search_word,
                     auto=auto,
                     model_type=model_type,
@@ -1753,7 +1746,7 @@ class ModelSearchPipeline(SearchPipeline):
         return cls().search_for_hubs(search_word, **kwargs)
     
     @classmethod
-    def for_HF(
+    def for_hf(
         cls,
         search_word,
         **kwargs
