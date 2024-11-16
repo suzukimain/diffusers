@@ -113,9 +113,9 @@ class HFSearchPipeline:
     def __init__(self):
         pass
         
-        
-    def search_for_hf(
-            self,
+    @classmethod    
+    def for_HF(
+            cls,
             search_word,
             **kwargs
             ):
@@ -126,19 +126,19 @@ class HFSearchPipeline:
         include_params = kwargs.pop("include_params", False)
         include_civitai = kwargs.pop("include_civitai", True)
 
-        self.single_file_only = True if "single_file" == model_format else False
-        self.model_info["model_status"]["search_word"] = search_word
-        self.model_info["model_status"]["local"] = True if download else False
+        cls.single_file_only = True if "single_file" == model_format else False
+        cls.model_info["model_status"]["search_word"] = search_word
+        cls.model_info["model_status"]["local"] = True if download else False
         
         model_path = ""
-        model_name = self.model_name_search(
+        model_name = cls.model_name_search(
             model_name=search_word,
             auto_set=auto,
             model_format=model_format,
             include_civitai=include_civitai
             )
         if not model_name is None:
-            file_path = self.file_name_set(
+            file_path = cls.file_name_set(
                 search_word=model_name,
                 auto=auto,
                 model_format=model_format,
@@ -146,32 +146,32 @@ class HFSearchPipeline:
                 )
             if file_path == "DiffusersFormat":
                 if download:
-                    model_path = self.run_hf_download(
+                    model_path = cls.run_hf_download(
                         model_name,
-                        branch=self.branch
+                        branch=cls.branch
                         )
                 else:
                     model_path = model_name
-                self.model_info["model_path"] = model_path
-                self.model_info["model_status"]["single_file"] = False
-                self.model_info["load_type"] = "from_pretrained"
+                cls.model_info["model_path"] = model_path
+                cls.model_info["model_status"]["single_file"] = False
+                cls.model_info["load_type"] = "from_pretrained"
 
             else:
                 hf_model_path = f"https://huggingface.co/{model_name}/blob/{self.branch}/{file_path}"
                 if download:
-                    model_path = self.run_hf_download(hf_model_path)
+                    model_path = cls.run_hf_download(hf_model_path)
                 else:
                     model_path = hf_model_path
-                self.model_info["model_status"]["single_file"] = True
-                self.model_info["load_type"] = "from_single_file"
-                self.model_info["model_status"]["filename"] = file_path
+                cls.model_info["model_status"]["single_file"] = True
+                cls.model_info["load_type"] = "from_single_file"
+                cls.model_info["model_status"]["filename"] = file_path
 
             if include_params:
                 return SearchPipelineOutput(
-                    model_path=self.model_info["model_path"],
-                    load_type=self.model_info["load_type"],
-                    repo_status=RepoStatus(**self.model_info["repo_status"]),
-                    model_status=ModelStatus(**self.model_info["model_status"])
+                    model_path=cls.model_info["model_path"],
+                    load_type=cls.model_info["load_type"],
+                    repo_status=RepoStatus(**cls.model_info["repo_status"]),
+                    model_status=ModelStatus(**cls.model_info["model_status"])
                     )
             else:
                 return model_path
@@ -896,9 +896,9 @@ class CivitaiSearchPipeline:
     def __init__(self):
         pass
 
-
-    def search_for_civitai(
-        self,
+    @classmethod
+    def for_civitai(
+        cls,
         search_word,
         **kwargs
     ) -> SearchPipelineOutput:
@@ -943,12 +943,12 @@ class CivitaiSearchPipeline:
                 },
             }
         
-        self.single_file_only = True if "single_file" == model_format else False
+        cls.single_file_only = True if "single_file" == model_format else False
 
-        self.model_info["model_status"]["search_word"] = search_word
-        self.model_info["model_status"]["local"] = True if download else False
+        cls.model_info["model_status"]["search_word"] = search_word
+        cls.model_info["model_status"]["local"] = True if download else False
 
-        state = self.requests_civitai(
+        state = cls.requests_civitai(
             query=search_word,
             model_type=model_type,
             civitai_token=civitai_token,
@@ -959,16 +959,16 @@ class CivitaiSearchPipeline:
             else:
                 raise ValueError("No models were found in civitai.")
 
-        dict_of_civitai_repo = self.repo_select_civitai(
+        dict_of_civitai_repo = cls.repo_select_civitai(
             state=state, auto=auto, include_hugface=include_hugface
         )
 
         if not dict_of_civitai_repo:
             return None
 
-        version_data = self.version_select_civitai(state=dict_of_civitai_repo, auto=auto)
+        version_data = cls.version_select_civitai(state=dict_of_civitai_repo, auto=auto)
         files_list = version_data["files"]
-        file_status_dict = self.file_select_civitai(state_list=files_list, auto=auto)
+        file_status_dict = cls.file_select_civitai(state_list=files_list, auto=auto)
         
         model_download_url = file_status_dict["download_url"]
         model_info["repo_status"]["repo_name"] = dict_of_civitai_repo["repo_name"]
@@ -982,10 +982,10 @@ class CivitaiSearchPipeline:
         model_info["model_status"]["filename"] = file_status_dict["filename"]
         model_info["model_status"]["single_file"] = True
         if download:
-            model_save_path = self.civitai_save_path()
+            model_save_path = cls.civitai_save_path()
             model_info["model_path"] = model_save_path
             model_info["load_type"] = "from_single_file"
-            self.download_model(
+            cls.download_model(
                 url=model_download_url,
                 save_path=model_save_path,
                 civitai_token=civitai_token,
@@ -1380,19 +1380,20 @@ class CivitaiSearchPipeline:
 
 
 
-class SearchPipeline(
+class ModelSearchPipeline(
     HFSearchPipeline,
     CivitaiSearchPipeline
     ):
-    def __init__(self):
-        super().__init__()
     
-
+    def __init__(self):
+        pass
+    
+    @classmethod
     def search_for_hubs(
-            self,
-            search_word: str,
-            **kwargs
-            ) -> Union[str, SearchPipelineOutput]:
+        cls,
+        search_word: str,
+        **kwargs
+    ) -> Union[str, SearchPipelineOutput]:
         """Search and retrieve model information from various sources.
 
         Args:
@@ -1429,12 +1430,12 @@ class SearchPipeline(
             hf_token = kwargs.pop("hf_token", None)
             login(token=hf_token)        
         
-        self.single_file_only = True if "single_file" == model_format else False
+        cls.single_file_only = True if "single_file" == model_format else False
 
-        self.model_info["model_status"]["search_word"] = search_word
-        self.model_info["model_status"]["local"] = True if download or local_file_only else False
+        cls.model_info["model_status"]["search_word"] = search_word
+        cls.model_info["model_status"]["local"] = True if download or local_file_only else False
 
-        result = self.model_set(
+        result = cls.model_set(
             search_word=search_word,
             auto=auto,
             download=download,
@@ -1451,10 +1452,10 @@ class SearchPipeline(
             return result
         else:
             return SearchPipelineOutput(
-                model_path=self.model_info["model_path"],
-                load_type=self.model_info["load_type"],
-                repo_status=RepoStatus(**self.model_info["repo_status"]),
-                model_status=ModelStatus(**self.model_info["model_status"])
+                model_path=cls.model_info["model_path"],
+                load_type=cls.model_info["load_type"],
+                repo_status=RepoStatus(**cls.model_info["repo_status"]),
+                model_status=ModelStatus(**cls.model_info["model_status"])
             )
 
     def File_search(
@@ -1736,31 +1737,3 @@ class SearchPipeline(
             return model_path
 
 
-
-class ModelSearchPipeline(SearchPipeline):
-    def __init__(self):
-        pass
-    
-    @classmethod
-    def for_hubs(
-        cls,
-        search_word,
-        **kwargs
-    ):
-        return cls.search_for_hubs(search_word, **kwargs)
-    
-    @classmethod
-    def for_hf(
-        cls,
-        search_word,
-        **kwargs
-    ):
-        return cls.search_for_hf(search_word, **kwargs)
-    
-    @classmethod
-    def for_civitai(
-        cls,
-        search_word,
-        **kwargs
-    ):
-        return cls.search_for_civitai(search_word, **kwargs)
