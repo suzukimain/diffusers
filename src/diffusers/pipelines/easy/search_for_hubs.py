@@ -24,8 +24,6 @@ from ...loaders.single_file_utils import (
     )
 
 
-
-
 CUSTOM_SEARCH_KEY = {
     "sd" : "stabilityai/stable-diffusion-2-1",
     }
@@ -113,7 +111,7 @@ class HFSearchPipeline:
         }
     
     def __init__(self):
-        super().__init__()
+        pass
         
         
     def search_for_hf(
@@ -717,12 +715,11 @@ class HFSearchPipeline:
         return None
 
 
-    def file_name_set_sub(self, search_word, file_value):
+    def file_name_set_sub(self, file_value):
         """
         Sets the file name.
 
         Args:
-            search_word (str): Model selection.
             file_value (list): List of file values.
 
         Returns:
@@ -849,7 +846,7 @@ class HFSearchPipeline:
             file_value = sort_by_version(file_value)
             if not auto:
                 print("\033[34mThe following model files were found\033[0m")
-                choice_path = self.file_name_set_sub(search_word, file_value)
+                choice_path = self.file_name_set_sub(file_value)
             else:
                 if self.diffuser_model and (not skip_difusers):
                     choice_path = "DiffusersFormat"
@@ -893,7 +890,7 @@ class CivitaiSearchPipeline:
     chunk_size: int = 8192
 
     def __init__(self):
-        super().__init__()
+        pass
 
 
     def search_for_civitai(
@@ -1732,7 +1729,7 @@ class SearchPipeline(
 
 class ModelSearchPipeline(SearchPipeline):
     def __init__(self):
-        super().__init__()
+        pass
     
     @classmethod
     def for_hubs(
@@ -1740,7 +1737,7 @@ class ModelSearchPipeline(SearchPipeline):
         search_word,
         **kwargs
     ):
-        return cls().search_for_hubs(search_word, **kwargs)
+        return cls.search_for_hubs(search_word, **kwargs)
     
     @classmethod
     def for_hf(
@@ -1748,7 +1745,7 @@ class ModelSearchPipeline(SearchPipeline):
         search_word,
         **kwargs
     ):
-        return cls().search_for_hf(search_word, **kwargs)
+        return cls.search_for_hf(search_word, **kwargs)
     
     @classmethod
     def for_civitai(
@@ -1756,4 +1753,4 @@ class ModelSearchPipeline(SearchPipeline):
         search_word,
         **kwargs
     ):
-        return cls().search_for_civitai(search_word, **kwargs)
+        return cls.search_for_civitai(search_word, **kwargs)
