@@ -422,13 +422,19 @@ class HFSearchPipeline:
 
         Returns:
             dict: Model information.
+
+        The current processing is necessary because `security_repo_status` is not reflected when recursively converting to a dictionary using `asdict`.
         """
         hf_info = hf_api.model_info(
             repo_id=model_name, files_metadata=True, securityStatus=True
         )
         model_dict = asdict(hf_info)
-        if "securityStatus" not in model_dict.keys():
-            model_dict["securityStatus"] = hf_info.__dict__["securityStatus"]
+        try:
+            if "security_repo_status" not in model_dict.keys():
+                model_dict["security_repo_status"] = hf_info.__dict__["security_repo_status"]
+        except KeyError:
+            logger.warning("Could not get `security_repo_status`")
+
         return model_dict
 
 
@@ -460,7 +466,10 @@ class HFSearchPipeline:
             check_dict (dict): Model information.
 
         Returns:
-            int: 0 for models that passed the scan, 1 for models not scanned or in error, 2 if there is a security risk.
+            int: 
+                0 for models that passed the scan,
+                1 for models not scanned or in error,
+                2 if there is a security risk.
         """
         try:
             status = check_dict["securityStatus"]
@@ -471,7 +480,8 @@ class HFSearchPipeline:
             else:
                 return 0
         except KeyError:
-            return 2
+            logger.warning("Could not load security status.")
+            return 1
 
 
     def check_if_file_exists(self, hf_repo_info):
