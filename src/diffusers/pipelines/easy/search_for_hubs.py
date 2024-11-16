@@ -199,17 +199,6 @@ class HFSearchPipeline:
         return repo_id, weights_name
 
 
-    def hf_login(self, token=None):
-        """
-        Logs in to Huggingface.
-
-        Args:
-            token (str): Huggingface token.
-        """
-        if token:
-            login(token)
-
-
     def _hf_repo_download(self, path, branch="main"):
         """
         Downloads the repository.
@@ -434,6 +423,7 @@ class HFSearchPipeline:
                 model_dict["security_repo_status"] = hf_info.__dict__["security_repo_status"]
         except KeyError:
             logger.warning("Could not get `security_repo_status`")
+            logger.debug(hf_info.__dict__.keys())
 
         return model_dict
 
@@ -472,8 +462,8 @@ class HFSearchPipeline:
                 2 if there is a security risk.
         """
         try:
-            status = check_dict["securityStatus"]
-            if status["hasUnsafeFile"]:
+            status = check_dict["security_repo_status"]
+            if status["filesWithIssues"]:
                 return 2
             elif not status["scansDone"]:
                 return 1
