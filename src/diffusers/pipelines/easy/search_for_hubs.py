@@ -136,7 +136,7 @@ class HFSearchPipeline:
             )
         if not model_name is None:
             file_path = self.file_name_set(
-                 search_word=model_name,
+                search_word=model_name,
                 auto=auto,
                 model_format=model_format,
                 model_type=model_type
@@ -432,17 +432,17 @@ class HFSearchPipeline:
         return model_dict
 
 
-    def old_hf_model_info(self,  search_word) -> dict:
+    def old_hf_model_info(self,search_word) -> dict:
         """
         Old method for retrieving model information from Huggingface.
 
         Args:
-             search_word (str): Model selection.
+            search_word (str): Model selection.
 
         Returns:
             dict: Model information.
         """
-        url = f"https://huggingface.co/api/models/{ search_word}"
+        url = f"https://huggingface.co/api/models/{search_word}"
         try:
             response = requests.get(url)
             response.raise_for_status()
@@ -716,12 +716,12 @@ class HFSearchPipeline:
         return None
 
 
-    def file_name_set_sub(self,  search_word, file_value):
+    def file_name_set_sub(self, search_word, file_value):
         """
         Sets the file name.
 
         Args:
-             search_word (str): Model selection.
+            search_word (str): Model selection.
             file_value (list): List of file values.
 
         Returns:
@@ -813,13 +813,13 @@ class HFSearchPipeline:
 
 
     def file_name_set(
-        self,  search_word, auto, model_format, model_type="Checkpoint"
+        self, search_word, auto, model_format, model_type="Checkpoint"
     ):
         """
         Sets the file name.
 
         Args:
-             search_word (str): Model selection.
+            search_word (str): Model selection.
             auto (bool): Auto flag.
             model_format (str): Model format.
             model_type (str): Model type.
@@ -827,7 +827,7 @@ class HFSearchPipeline:
         Returns:
             str: File name.
         """
-        if self.diffusers_model_check( search_word) and model_type == "Checkpoint":
+        if self.diffusers_model_check(search_word) and model_type == "Checkpoint":
             self.diffuser_model = True
         else:
             self.diffuser_model = False
@@ -837,7 +837,7 @@ class HFSearchPipeline:
         else:
             skip_difusers = False
 
-        data = self.hf_model_info( search_word)
+        data = self.hf_model_info(search_word)
         choice_path = ""
         file_value = []
         if data:
@@ -848,7 +848,7 @@ class HFSearchPipeline:
             file_value = self.sort_by_version(file_value)
             if not auto:
                 print("\033[34mThe following model files were found\033[0m")
-                choice_path = self.file_name_set_sub( search_word, file_value)
+                choice_path = self.file_name_set_sub(search_word, file_value)
             else:
                 if self.diffuser_model and (not skip_difusers):
                     choice_path = "DiffusersFormat"
@@ -1438,7 +1438,7 @@ class SearchPipeline(
         self.model_info["model_status"]["local"] = True if download or local_file_only else False
 
         result = self.model_set(
-             search_word=search_word,
+            search_word=search_word,
             auto=auto,
             download=download,
             model_format=model_format,
@@ -1582,36 +1582,36 @@ class SearchPipeline(
         if not model_format in ["all","diffusers","single_file"]:
             raise TypeError('The model_format is valid only for one of the following: "all","diffusers","single_file"')
       
-        if  search_word in CUSTOM_SEARCH_KEY:
-            model_path_to_check = CUSTOM_SEARCH_KEY[ search_word]
+        if search_word in CUSTOM_SEARCH_KEY:
+            model_path_to_check = CUSTOM_SEARCH_KEY[search_word]
             _check_url = f"https://huggingface.co/{model_path_to_check}"
             if is_valid_url(_check_url):
-                 search_word = model_path_to_check
+                search_word = model_path_to_check
                 self.model_info["model_path"] = _check_url
             else:
-                logger.warning(f"The following custom search keys are ignored.`{ search_word} : {CUSTOM_SEARCH_KEY[ search_word]}`")
+                logger.warning(f"The following custom search keys are ignored.`{search_word} : {CUSTOM_SEARCH_KEY[search_word]}`")
 
         if local_file_only:
             model_path = next(self.File_search(
-                search_word= search_word,
+                search_word=search_word,
                 auto=auto
             ))
             self.model_info["model_status"]["single_file"] = True
             self.model_info["model_path"] = model_path
             self.model_info["load_type"] = "from_single_file"
 
-        elif  search_word.startswith("https://huggingface.co/"):
-            if not is_valid_url( search_word):
+        elif search_word.startswith("https://huggingface.co/"):
+            if not is_valid_url(search_word):
                 raise ValueError("Could not load URL")
             else:
                 if download:
-                    model_path = self.run_hf_download( search_word)
+                    model_path = self.run_hf_download(search_word)
                 else:
-                    model_path =  search_word
+                    model_path = search_word
 
                 self.model_info["model_status"]["single_file"] = True
                 self.model_info["model_path"] = model_path
-                repo, file_name = self.repo_name_or_path( search_word)
+                repo, file_name = self.repo_name_or_path(search_word)
                 if file_name:
                     self.model_info["model_status"]["filename"] = file_name
                     self.model_info["model_status"]["single_file"] = True
@@ -1621,9 +1621,9 @@ class SearchPipeline(
                     self.model_info["load_type"] = "from_pretrained"
 
 
-        elif  search_word.startswith("https://civitai.com/"):
+        elif search_word.startswith("https://civitai.com/"):
             model_path = self.civitai_model_set(
-                search_word= search_word,
+                search_word=search_word,
                 auto=auto,
                 model_type=model_type,
                 download=download,
@@ -1631,52 +1631,52 @@ class SearchPipeline(
                 skip_error=False
             )
 
-        elif os.path.isfile( search_word):
-            model_path =  search_word
-            self.model_info["model_path"] =  search_word
+        elif os.path.isfile(search_word):
+            model_path = search_word
+            self.model_info["model_path"] = search_word
             self.model_info["model_status"]["single_file"] = True
             self.model_info["load_type"] = "from_single_file"
             self.model_info["model_status"]["local"] = True
 
-        elif os.path.isdir( search_word):
-            if os.path.exists(os.path.join( search_word, self.Config_file)):
-                model_path =  search_word
-                self.model_info["model_path"] =  search_word
+        elif os.path.isdir(search_word):
+            if os.path.exists(os.path.join(search_word, self.Config_file)):
+                model_path = search_word
+                self.model_info["model_path"] = search_word
                 self.model_info["model_status"]["single_file"] = False
                 self.model_info["load_type"] = "from_pretrained"
                 self.model_info["model_status"]["local"] = True
             else:
-                raise FileNotFoundError(f"model_index.json not found in { search_word}")
+                raise FileNotFoundError(f"model_index.json not found in {search_word}")
 
-        elif  search_word.count("/") == 1:
-            creator_name, repo_name =  search_word.split("/")
+        elif search_word.count("/") == 1:
+            creator_name, repo_name = search_word.split("/")
 
-            if auto and self.diffusers_model_check( search_word):
+            if auto and self.diffusers_model_check(search_word):
                 if download:
-                    model_path = self.run_hf_download( search_word)
+                    model_path = self.run_hf_download(search_word)
                     self.model_info["model_status"]["single_file"] = False
                 else:
-                    model_path =  search_word
+                    model_path = search_word
                     self.model_info["model_status"]["single_file"] = False
                 self.model_info["load_type"] = "from_pretrained"
 
-            elif auto and (not self.hf_model_check( search_word)):
-                raise ValueError(f'The specified repository could not be found, please try turning off "auto" ( search_word:{ search_word})')
+            elif auto and (not self.hf_model_check(search_word)):
+                raise ValueError(f'The specified repository could not be found, please try turning off "auto" (search_word:{search_word})')
             else:
-                file_path=self.file_name_set( search_word,auto,model_type)
+                file_path=self.file_name_set(search_word,auto,model_type)
                 if file_path is None:
                     raise ValueError("Model not found")
                 elif file_path == "DiffusersFormat":
                     if download:
-                        model_path = self.run_hf_download( search_word)
+                        model_path = self.run_hf_download(search_word)
                     else:
-                        model_path =  search_word
+                        model_path = search_word
 
                     self.model_info["model_status"]["single_file"] = False
                     self.model_info["load_type"] = "from_pretrained"
                     
                 else:
-                    hf_model_path = f"https://huggingface.co/{ search_word}/blob/{branch}/{file_path}"
+                    hf_model_path = f"https://huggingface.co/{search_word}/blob/{branch}/{file_path}"
                     
                     if download:
                         model_path = self.run_hf_download(hf_model_path)
@@ -1692,7 +1692,7 @@ class SearchPipeline(
         else:
             if priority_hub == "huggingface":
                 model_path = self.search_for_hf(
-                     search_word= search_word,
+                    search_word=search_word,
                     auto=auto,
                     model_format=model_format,
                     model_type=model_type,
@@ -1701,7 +1701,7 @@ class SearchPipeline(
                     )
                 if model_path is None:
                     model_path = self.civitai_model_set(
-                        search_word= search_word,
+                        search_word=search_word,
                         auto=auto,
                         model_type=model_type,
                         download=download,
@@ -1713,7 +1713,7 @@ class SearchPipeline(
                 
             else:
                 model_path = self.civitai_model_set(
-                    search_word= search_word,
+                    search_word=search_word,
                     auto=auto,
                     model_type=model_type,
                     download=download,
@@ -1722,7 +1722,7 @@ class SearchPipeline(
                 )
                 if not model_path:
                     model_path = self.search_for_hf(
-                         search_word= search_word,
+                        search_word=search_word,
                         auto=auto,
                         model_format=model_format,
                         model_type=model_type,
