@@ -1384,12 +1384,12 @@ class ModelSearchPipeline(
     HFSearchPipeline,
     CivitaiSearchPipeline
     ):
-    
+
     def __init__(self):
         pass
     
     @classmethod
-    def search_for_hubs(
+    def for_hubs(
         cls,
         search_word: str,
         **kwargs
