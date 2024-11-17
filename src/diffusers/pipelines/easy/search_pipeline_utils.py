@@ -1,6 +1,5 @@
 import os
 import re
-import json
 import inspect
 import importlib
 import difflib
@@ -119,7 +118,7 @@ class SearchPipelineConfig(
         check_for_safetensors(path): Checks if the file is a safetensors file.
         find_closest_match(search_word, search_list): Finds the closest match for a given search word in a list of words.
         filter_list_by_text(list_obj, need_txt): Filters a list of objects based on a text string.
-        sort_by_version(sorted_list): Sorts a list by version in order of newest to oldest.
+        natural_sort(sorted_list): Sorts a list by version in order of newest to oldest.
         get_pipeline_output_keys(class_obj): Returns a list of keys of the data class of the pipeline return value.
     """
 
@@ -335,7 +334,7 @@ class SearchPipelineConfig(
                 sorted_list.append(module_obj)
         return sorted_list
 
-    def sort_by_version(self, sorted_list) -> list:
+    def natural_sort(self, sorted_list) -> list:
         """
         Sorts a list by version in order of newest to oldest.
 
@@ -386,7 +385,7 @@ class SearchPipelineConfig(
                 },
             }
         
-        status["extra_type"]["url"] = bool(re.match(r"^(https?)://", keyword))
+        status["extra_type"]["url"] = bool(re.search(r"^(https?)://", keyword))
 
         if os.path.isfile(keyword):
             status["type"]["local"] = True

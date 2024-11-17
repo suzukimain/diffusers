@@ -21,7 +21,9 @@ from .pipeline_output import (
 from ...loaders.single_file_utils import (
     VALID_URL_PREFIXES,
     is_valid_url,
+    _extract_repo_id_and_weights_name,
     )
+
 
 
 CUSTOM_SEARCH_KEY = {
@@ -70,19 +72,105 @@ EXTENSION =  [".safetensors", ".ckpt",".bin"]
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
+
 if is_natsort_available():
     from natsort import natsorted
 
+
 def natural_sort(sorted_list) -> list:
     """
-    Sorts a list by version in order of newest to oldest.
+    Sort a list of version strings in descending order.
+    
     Args:
-        sorted_list (list): The list to sort.
-
+        sorted_list (list): List of version strings to be sorted.
+        
     Returns:
-        list: The sorted list.
+        list: Sorted list of version strings in descending order.
     """
-    return natsorted(sorted_list, reverse=True) if is_natsort_available() else sorted(sorted_list, reverse=True)
+    if is_natsort_available():
+        return natsorted(sorted_list, reverse=True)
+    else:
+        return sorted(sorted_list, reverse=True)
+
+
+
+def get_keyword_types(keyword):
+    """
+    Determine the type and loading method for a given keyword.
+    
+    Args:
+        keyword (str): The input keyword to classify.
+        
+    Returns:
+        dict: A dictionary containing the model format, loading method,
+              and various types and extra types flags.
+    """
+    
+    # Initialize the status dictionary with default values
+    status = {
+        "model_format": None,
+        "loading_method": None,
+        "type": {
+            "search_word": False,
+            "hf_url": False,
+            "hf_repo": False,
+            "civitai_url": False,
+            "local": False,
+        },
+        "extra_type": {
+            "url": False,
+            "missing_model_index": None,
+        },
+    }
+    
+    # Check if the keyword is an HTTP or HTTPS URL
+    status["extra_type"]["url"] = bool(re.search(r"^(https?)://", keyword))
+    
+    # Check if the keyword is a file
+    if os.path.isfile(keyword):
+        status["type"]["local"] = True
+        status["model_format"] = "single_file"
+        status["loading_method"] = "from_single_file"
+    
+    # Check if the keyword is a directory
+    elif os.path.isdir(keyword):
+        status["type"]["local"] = True
+        status["model_format"] = "diffusers"
+        status["loading_method"] = "from_pretrained"
+        if not os.path.exists(os.path.join(keyword, "model_index.json")):
+            status["extra_type"]["missing_model_index"] = True
+    
+    # Check if the keyword is a Civitai URL
+    elif keyword.startswith("https://civitai.com/"):
+        status["type"]["civitai_url"] = True
+        status["model_format"] = "single_file"
+        status["loading_method"] = None
+    
+    # Check if the keyword starts with any valid URL prefixes
+    elif any(keyword.startswith(prefix) for prefix in VALID_URL_PREFIXES):
+        repo_id, weights_name = _extract_repo_id_and_weights_name(keyword)
+        if weights_name:
+            status["type"]["hf_url"] = True
+            status["model_format"] = "single_file"
+            status["loading_method"] = "from_single_file"
+        else:
+            status["type"]["hf_repo"] = True
+            status["model_format"] = "diffusers"
+            status["loading_method"] = "from_pretrained"
+    
+    # Check if the keyword matches a Hugging Face repository format
+    elif re.match(r"^[^/]+/[^/]+$", keyword):
+        status["type"]["hf_repo"] = True
+        status["model_format"] = "diffusers"
+        status["loading_method"] = "from_pretrained"
+    
+    # If none of the above, treat it as a search word
+    else:
+        status["type"]["search_word"] = True
+        status["model_format"] = None
+        status["loading_method"] = None
+    
+    return status
 
 
 
@@ -115,21 +203,63 @@ class HFSearchPipeline:
         
     @classmethod    
     def for_HF(
-            cls,
-            search_word,
-            **kwargs
-            ):
+        cls,
+        search_word,
+        **kwargs
+    ):
         auto = kwargs.pop("auto", True)
         branch = kwargs.pop("branch", "main")
         model_format = kwargs.pop("model_format", "single_file")
         model_type = kwargs.pop("model_type", "Checkpoint")
         download = kwargs.pop("download", False)
+        force_download = kwargs.pop("force_download", False)
         include_params = kwargs.pop("include_params", False)
-        include_civitai = kwargs.pop("include_civitai", True)
+        hf_token = kwargs.pop("hf_token", None)
 
         cls.single_file_only = True if "single_file" == model_format else False
         cls.model_info["model_status"]["search_word"] = search_word
         cls.model_info["model_status"]["local"] = True if download else False
+
+        search_word_status = get_keyword_types(search_word)
+        if search_word_status == "hf_repo":
+            if download:
+                model_path = DiffusionPipeline.download(
+                    search_word,
+                    branch=branch,
+                    token=hf_token
+                )
+            else:
+                model_path = search_word
+        elif search_word_status == "hf_url":
+            repo_id, weights_name = _extract_repo_id_and_weights_name(search_word)
+            if download:
+                model_path = hf_hub_download(
+                    repo_id=repo_id,
+                    filename=weights_name,
+                    force_download=force_download,
+                    token=hf_token
+                )
+            else:
+                model_path = search_word
+            
+        
+
+
+        hf_models = hf_api.list_models(
+            search=model_name,
+            sort="trending",
+            direction=-1,
+            limit=100,
+            fetch_config=True,
+            full=True,
+            token=hf_token
+            )
+        model_dicts = [asdict(value) for value in list(hf_models)]
+
+        
+
+
+
         
         model_path = ""
         model_name = cls.model_name_search(
@@ -511,6 +641,21 @@ class HFSearchPipeline:
         """
         exclude_tag = ["audio-to-audio"]
         data = self.hf_model_search(model_name, limit)
+
+        hf_models = hf_api.list_models(
+            search=model_name,
+            sort="trending",
+            direction=-1,
+            limit=100,
+            fetch_config=True,
+            full=True
+            )
+        model_dicts = [asdict(value) for value in list(hf_models)]
+
+
+
+
+
         model_settings_list = []
         for item in data:
             model_id = item["id"]
