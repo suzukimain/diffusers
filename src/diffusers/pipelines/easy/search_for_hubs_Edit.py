@@ -215,13 +215,14 @@ class HFSearchPipeline:
         force_download = kwargs.pop("force_download", False)
         include_params = kwargs.pop("include_params", False)
         hf_token = kwargs.pop("hf_token", None)
+        skip_Error = kwargs.pop("skip_Error", False)
 
         cls.single_file_only = True if "single_file" == model_format else False
         cls.model_info["model_status"]["search_word"] = search_word
         cls.model_info["model_status"]["local"] = True if download else False
 
         search_word_status = get_keyword_types(search_word)
-        if search_word_status == "hf_repo":
+        if search_word_status["type"]["hf_repo"]:
             if download:
                 model_path = DiffusionPipeline.download(
                     search_word,
@@ -230,7 +231,7 @@ class HFSearchPipeline:
                 )
             else:
                 model_path = search_word
-        elif search_word_status == "hf_url":
+        elif search_word_status["type"]["hf_url"]:
             repo_id, weights_name = _extract_repo_id_and_weights_name(search_word)
             if download:
                 model_path = hf_hub_download(
@@ -241,22 +242,26 @@ class HFSearchPipeline:
                 )
             else:
                 model_path = search_word
-            
+        elif search_word_status["type"]["local"]:
+            model_path = search_word
+
+        elif search_word_status["type"]["civitai_url"]:
+            if skip_Error:
+                model_path = None
+            else:
+                raise ValueError("The URL for Civitai is invalid with `for_hf`. Please use `for_civitai` instead.")
         
-
-
-        hf_models = hf_api.list_models(
-            search=model_name,
-            sort="trending",
-            direction=-1,
-            limit=100,
-            fetch_config=True,
-            full=True,
-            token=hf_token
-            )
-        model_dicts = [asdict(value) for value in list(hf_models)]
-
-        
+        else:
+            hf_models = hf_api.list_models(
+                search=model_name,
+                sort="trending",
+                direction=-1,
+                limit=100,
+                fetch_config=True,
+                full=True,
+                token=hf_token
+                )
+            model_dicts = [asdict(value) for value in list(hf_models)]
 
 
 
