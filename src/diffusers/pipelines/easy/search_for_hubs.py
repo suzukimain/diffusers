@@ -120,6 +120,7 @@ class HFSearchPipeline:
             **kwargs
             ):
         auto = kwargs.pop("auto", True)
+        branch = kwargs.pop("branch", "main")
         model_format = kwargs.pop("model_format", "single_file")
         model_type = kwargs.pop("model_type", "Checkpoint")
         download = kwargs.pop("download", False)
@@ -157,7 +158,7 @@ class HFSearchPipeline:
                 cls.model_info["load_type"] = "from_pretrained"
 
             else:
-                hf_model_path = f"https://huggingface.co/{model_name}/blob/{self.branch}/{file_path}"
+                hf_model_path = f"https://huggingface.co/{model_name}/blob/{branch}/{file_path}"
                 if download:
                     model_path = cls.run_hf_download(hf_model_path)
                 else:
