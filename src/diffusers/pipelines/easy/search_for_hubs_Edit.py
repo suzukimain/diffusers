@@ -271,9 +271,10 @@ class HFSearchPipeline:
             model_dicts = [asdict(value) for value in list(hf_models)]
 
             for repo_info in model_dicts:
+                repo_id = repo_info["id"]
                 file_list = []
                 hf_repo_info = hf_api.model_info(
-                    repo_id=repo_info["id"],
+                    repo_id=repo_id,
                     securityStatus=True
                 )
                 hf_security_info = hf_repo_info.security_repo_status
@@ -292,36 +293,40 @@ class HFSearchPipeline:
                             any(file_path.endswith(ext) for ext in EXTENSION)
                             and (file_path not in CONFIG_FILE_LIST)
                             and (file_path not in exclusion)
-                        ) :
+                        ):
                             file_list.append(file_path)
                     
-                    
-                    if (
-                        diffusers_model_exists
-                        or (not file_list)
-                    ):
-                        break
-                         
-
-                        
-                            
-                        
-                        if file_list:
-                            break
+                if (
+                    diffusers_model_exists
+                    or file_list
+                ):
                     break
-                    
-                    
-                
+            else:
+                if diffusers_model_exists:
+                    if download:
+                        model_path = DiffusionPipeline.download(
+                            repo_id=repo_id
+                            token=hf_token
+                        )
+                    else:
+                        model_path=repo_id
+                elif file_list:
+                    file_name = natural_sort(file_list)[0]
+                    if download:
+                        model_path = hf_hub_download(
+                            repo_id=repo_id,
+                            filename=file_name
+                        )
+                    else:
+                        model_path = f"https://huggingface.co/{repo_id}/blob/main/{file_name}"             
 
-                
-
-            if not model_settings_list:
-                if skip_Error:
-                    model_path = None
                 else:
-                    raise ValueError("No models matching your criteria were found on huggingface.")
-
-
+                    if skip_Error:
+                        model_path = None
+                    else:
+                        raise ValueError("No models matching your criteria were found on huggingface.")
+                    
+            
 
         
         model_path = ""
