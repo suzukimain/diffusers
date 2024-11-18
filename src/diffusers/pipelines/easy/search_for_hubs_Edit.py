@@ -270,49 +270,34 @@ class HFSearchPipeline:
             )
             model_dicts = [asdict(value) for value in list(hf_models)]
 
-            # Process each model
             for repo_info in model_dicts:
-                #model_id = item["id"]
-                #like = item["likes"]
-                #private_value = item["private"] 
-                #tag_value = item["tags"]
-                
-                # Get file list for model
                 file_list = []
                 hf_repo_info = hf_api.model_info(repo_id=repo_info["id"], securityStatus=True)
                 hf_security_info = hf_repo_info.security_repo_status
                 exclusion = [issue['path'] for issue in hf_security_info['filesWithIssues']]
                 diffusers_model_exists = False
-                if hf_security_info["scansDone"]:                
+                if not hf_security_info["scansDone"]:                
+                    continue
+                else:
                     for info in repo_info["siblings"]:
                         file_path = info["rfilename"]
-                        if "model_index.json" == file_path:
-                            diffusers_model_exists = True
                         if (
                             any(file_path.endswith(ext) for ext in EXTENSION)
                             and (file_path not in CONFIG_FILE_LIST)
                             and (file_path not in exclusion)
+                        ) or (
+                            "model_index.json" == file_path
+                            and model_format in ["diffusers", "all"]
                         ):
                             file_list.append(file_path)
-                            
-                if not file_list:
-                    continue
+                    
+                    if file_list:
+                        break 
+                    
+                    
+                
 
-                # Add model if it meets criteria
-                if (
-                    all(tag not in tag_value for tag in exclude_tag)
-                    and (not private_value)
-                    and (file_list or diffusers_model_exists)
-                ):
-                    model_dict = {
-                        "model_id": model_id,
-                        "like": like,
-                        "model_info": item,
-                        "file_list": file_list,
-                        "diffusers_model_exists": diffusers_model_exists,
-                        "security_risk": 1
-                    }
-                    model_settings_list.append(model_dict)
+                
 
             if not model_settings_list:
                 if skip_Error:
