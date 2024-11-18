@@ -272,35 +272,35 @@ class HFSearchPipeline:
 
             for repo_info in model_dicts:
                 file_list = []
-                hf_repo_info = hf_api.model_info(repo_id=repo_info["id"], securityStatus=True)
+                hf_repo_info = hf_api.model_info(
+                    repo_id=repo_info["id"],
+                    securityStatus=True
+                )
                 hf_security_info = hf_repo_info.security_repo_status
                 exclusion = [issue['path'] for issue in hf_security_info['filesWithIssues']]
                 diffusers_model_exists = False
-                if not hf_security_info["scansDone"]:                
-                    continue
-                else:
+                if hf_security_info["scansDone"]:                
                     for info in repo_info["siblings"]:
                         file_path = info["rfilename"]
-                        if "model_index.json" == file_path:
+                        if "model_index.json" == file_path
+                            and model_format in ["diffusers", "all"]
+                            and model_type == "Checkpoint"
+                        ):
                             diffusers_model_exists = True
-                            #and model_format in ["diffusers", "all"]
-                            #and model_type == "Checkpoint"
-                        #):
-                            
-                        if (
+                            break
+                        elif (
                             any(file_path.endswith(ext) for ext in EXTENSION)
                             and (file_path not in CONFIG_FILE_LIST)
                             and (file_path not in exclusion)
                         ) :
                             file_list.append(file_path)
                     
-                    else:
-                        if (
-                            diffusers_model_exists
-                            and model_format in ["diffusers", "all"]
-                            and model_type == "Checkpoint"
-                        ):
-                            model_path = 
+                    
+                    if (
+                        diffusers_model_exists
+                        or (not file_list)
+                    ):
+                        break
                          
 
                         
