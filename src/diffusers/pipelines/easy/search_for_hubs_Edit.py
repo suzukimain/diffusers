@@ -10,6 +10,8 @@ from huggingface_hub import (
     login,
     )
 
+import diffusers
+
 from ...utils import logging
 from ...utils.import_utils import is_natsort_available
 from ..pipeline_utils import DiffusionPipeline
@@ -252,16 +254,71 @@ class HFSearchPipeline:
                 raise ValueError("The URL for Civitai is invalid with `for_hf`. Please use `for_civitai` instead.")
         
         else:
+            # Initialize lists to store model data
+            model_settings_list = []
+            exclude_tag = ["audio-to-audio"] 
+            
+            # Get model data from HF API
             hf_models = hf_api.list_models(
-                search=model_name,
+                search=search_word,
                 sort="trending",
                 direction=-1,
                 limit=100,
                 fetch_config=True,
                 full=True,
                 token=hf_token
-                )
+            )
             model_dicts = [asdict(value) for value in list(hf_models)]
+
+            # Process each model
+            for repo_info in model_dicts:
+                #model_id = item["id"]
+                #like = item["likes"]
+                #private_value = item["private"] 
+                #tag_value = item["tags"]
+                
+                # Get file list for model
+                file_list = []
+                hf_repo_info = hf_api.model_info(repo_id=repo_info["id"], securityStatus=True)
+                hf_security_info = hf_repo_info.security_repo_status
+                exclusion = [issue['path'] for issue in hf_security_info['filesWithIssues']]
+                diffusers_model_exists = False
+                if hf_security_info["scansDone"]:                
+                    for info in repo_info["siblings"]:
+                        file_path = info["rfilename"]
+                        if "model_index.json" == file_path:
+                            diffusers_model_exists = True
+                        if (
+                            any(file_path.endswith(ext) for ext in EXTENSION)
+                            and (file_path not in CONFIG_FILE_LIST)
+                            and (file_path not in exclusion)
+                        ):
+                            file_list.append(file_path)
+                            
+                if not file_list:
+                    continue
+
+                # Add model if it meets criteria
+                if (
+                    all(tag not in tag_value for tag in exclude_tag)
+                    and (not private_value)
+                    and (file_list or diffusers_model_exists)
+                ):
+                    model_dict = {
+                        "model_id": model_id,
+                        "like": like,
+                        "model_info": item,
+                        "file_list": file_list,
+                        "diffusers_model_exists": diffusers_model_exists,
+                        "security_risk": 1
+                    }
+                    model_settings_list.append(model_dict)
+
+            if not model_settings_list:
+                if skip_Error:
+                    model_path = None
+                else:
+                    raise ValueError("No models matching your criteria were found on huggingface.")
 
 
 
