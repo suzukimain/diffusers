@@ -281,18 +281,34 @@ class HFSearchPipeline:
                 else:
                     for info in repo_info["siblings"]:
                         file_path = info["rfilename"]
+                        if "model_index.json" == file_path:
+                            diffusers_model_exists = True
+                            #and model_format in ["diffusers", "all"]
+                            #and model_type == "Checkpoint"
+                        #):
+                            
                         if (
                             any(file_path.endswith(ext) for ext in EXTENSION)
                             and (file_path not in CONFIG_FILE_LIST)
                             and (file_path not in exclusion)
-                        ) or (
-                            "model_index.json" == file_path
-                            and model_format in ["diffusers", "all"]
-                        ):
+                        ) :
                             file_list.append(file_path)
                     
-                    if file_list:
-                        break 
+                    else:
+                        if (
+                            diffusers_model_exists
+                            and model_format in ["diffusers", "all"]
+                            and model_type == "Checkpoint"
+                        ):
+                            model_path = 
+                         
+
+                        
+                            
+                        
+                        if file_list:
+                            break
+                    break
                     
                     
                 
