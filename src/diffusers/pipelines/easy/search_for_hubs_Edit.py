@@ -216,6 +216,7 @@ class HFSearchPipeline:
         download = kwargs.pop("download", False)
         force_download = kwargs.pop("force_download", False)
         include_params = kwargs.pop("include_params", False)
+        pipeline_tag = kwargs.pop("pipeline_tag", None)
         hf_token = kwargs.pop("hf_token", None)
         skip_Error = kwargs.pop("skip_Error", False)
 
@@ -253,18 +254,15 @@ class HFSearchPipeline:
             else:
                 raise ValueError("The URL for Civitai is invalid with `for_hf`. Please use `for_civitai` instead.")
         
-        else:
-            # Initialize lists to store model data
-            model_settings_list = []
-            exclude_tag = ["audio-to-audio"] 
-            
+        else:          
             # Get model data from HF API
             hf_models = hf_api.list_models(
                 search=search_word,
-                sort="trending",
+                sort="trending_score",
                 direction=-1,
                 limit=100,
                 fetch_config=True,
+                pipeline_tag=pipeline_tag,
                 full=True,
                 token=hf_token
             )
@@ -283,19 +281,20 @@ class HFSearchPipeline:
                 if hf_security_info["scansDone"]:                
                     for info in repo_info["siblings"]:
                         file_path = info["rfilename"]
-                        if "model_index.json" == file_path
+                        if (
+                            "model_index.json" == file_path
                             and model_format in ["diffusers", "all"]
                             and model_type == "Checkpoint"
                         ):
                             diffusers_model_exists = True
                             break
+                        
                         elif (
                             any(file_path.endswith(ext) for ext in EXTENSION)
                             and (file_path not in CONFIG_FILE_LIST)
                             and (file_path not in exclusion)
                         ):
                             file_list.append(file_path)
-                    
                 if (
                     diffusers_model_exists
                     or file_list
@@ -305,17 +304,18 @@ class HFSearchPipeline:
                 if diffusers_model_exists:
                     if download:
                         model_path = DiffusionPipeline.download(
-                            repo_id=repo_id
+                            repo_id=repo_id,
                             token=hf_token
                         )
                     else:
-                        model_path=repo_id
+                        model_path = repo_id
                 elif file_list:
                     file_name = natural_sort(file_list)[0]
                     if download:
                         model_path = hf_hub_download(
                             repo_id=repo_id,
-                            filename=file_name
+                            filename=file_name,
+                            token=hf_token
                         )
                     else:
                         model_path = f"https://huggingface.co/{repo_id}/blob/main/{file_name}"             
@@ -327,6 +327,8 @@ class HFSearchPipeline:
                         raise ValueError("No models matching your criteria were found on huggingface.")
                     
             
+
+
 
         
         model_path = ""
