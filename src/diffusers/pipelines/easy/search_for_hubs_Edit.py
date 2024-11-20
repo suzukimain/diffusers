@@ -344,7 +344,17 @@ class HFSearchPipeline:
                         model_path = None
                     else:
                         raise ValueError("No models matching your criteria were found on huggingface.")
-                    
+        
+        
+        output_info = get_keyword_types(model_path)
+
+        if include_params:
+                return SearchPipelineOutput(
+                    model_path=model_path,
+                    loading_method=output_info["loading_method"],
+                    repo_status=RepoStatus(**cls.model_info["repo_status"]),
+                    model_status=ModelStatus(**cls.model_info["model_status"])
+                    )
             
 
         

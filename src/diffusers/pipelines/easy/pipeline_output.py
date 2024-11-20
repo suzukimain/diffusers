@@ -50,6 +50,6 @@ class SearchPipelineOutput:
         model_status (ModelStatus): The status of the model.
     """
     model_path: str = ""
-    load_type: str = ""  # "" or "from_single_file" or "from_pretrained"
+    loading_method: str = ""  # "" or "from_single_file" or "from_pretrained"
     repo_status: RepoStatus = RepoStatus()
     model_status: ModelStatus = ModelStatus()
