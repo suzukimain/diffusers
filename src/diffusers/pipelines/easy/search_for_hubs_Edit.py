@@ -204,8 +204,6 @@ class HFSearchPipeline:
             "search_word": "",
             "download_url": "",
             "filename": "",
-            "file_id": "",
-            "fp": "",
             "local": False,
             "single_file": False
         },
@@ -213,6 +211,22 @@ class HFSearchPipeline:
 
     def __init__(self):
         pass
+    
+    @staticmethod
+    def find_safest_model(models) -> str:
+        """
+        Sort and find the safest model.
+
+        Args:
+            models (list): A list of model names to sort and check.
+
+        Returns:
+            The name of the safest model or the first model in the list if no safe model is found.
+        """
+        for model in sorted(models, reverse=True):
+            if bool(re.search(r"(?i)[-_](safe|sfw)", model)):
+                return model
+        return models[0]
 
     @classmethod
     def for_HF(cls, search_word, **kwargs):
@@ -229,6 +243,7 @@ class HFSearchPipeline:
         # Extract additional parameters from kwargs
         auto = kwargs.pop("auto", True)
         branch = kwargs.pop("branch", "main")
+        revision = kwargs.pop("revision", None)
         model_format = kwargs.pop("model_format", "single_file")
         model_type = kwargs.pop("model_type", "Checkpoint")
         download = kwargs.pop("download", False)
@@ -287,6 +302,9 @@ class HFSearchPipeline:
                 token=hf_token
             )
             model_dicts = [asdict(value) for value in list(hf_models)]
+            hf_repo_info={}
+            file_list = []
+
 
             for repo_info in model_dicts:
                 repo_id = repo_info["id"]
@@ -325,20 +343,21 @@ class HFSearchPipeline:
                     if download:
                         model_path = DiffusionPipeline.download(
                             repo_id=repo_id,
-                            token=hf_token
+                            token=hf_token,
                         )
                     else:
                         model_path = repo_id
                 elif file_list:
-                    file_name = natsorted(file_list)[0]
+                    file_name = cls.find_safest_model(file_list)
                     if download:
                         model_path = hf_hub_download(
                             repo_id=repo_id,
                             filename=file_name,
+                            revision=revision,
                             token=hf_token
                         )
                     else:
-                        model_path = f"https://huggingface.co/{repo_id}/blob/main/{file_name}"
+                        model_path = f"https://huggingface.co/{repo_id}/blob/{branch}/{file_name}"
                 else:
                     if skip_error:
                         model_path = None
@@ -1179,8 +1198,6 @@ class CivitaiSearchPipeline:
                 "search_word" : "",
                 "download_url": "",
                 "filename":"",
-                "file_id": "",
-                "fp": "",
                 "local" : False,
                 "single_file" : False
                 },
@@ -1219,10 +1236,7 @@ class CivitaiSearchPipeline:
         model_info["repo_status"]["version_id"] = version_data["id"]
         model_info["model_status"]["download_url"] = model_download_url
         model_info["model_status"]["filename"] = file_status_dict["filename"]
-        model_info["model_status"]["file_id"] = file_status_dict["file_id"]
-        model_info["model_status"]["fp"] = file_status_dict["fp"]
         model_info["model_status"]["file_format"] = file_status_dict["file_format"]
-        model_info["model_status"]["filename"] = file_status_dict["filename"]
         model_info["model_status"]["single_file"] = True
         if download:
             model_save_path = cls.civitai_save_path()
@@ -1328,8 +1342,6 @@ class CivitaiSearchPipeline:
                     ):
                         file_status = {
                             "filename": model_value["name"],
-                            "file_id": model_value["id"],
-                            "fp": model_value["metadata"]["fp"],
                             "file_format": model_value["metadata"]["format"],
                             "download_url": model_value["downloadUrl"],
                         }
