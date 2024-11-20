@@ -160,20 +160,7 @@ def get_keyword_types(keyword):
 
 
 
-def find_safest_model(models) -> str:
-    """
-    Sort and find the safest model.
 
-    Args:
-        models (list): A list of model names to sort and check.
-
-    Returns:
-        The name of the safest model or the first model in the list if no safe model is found.
-    """
-    for model in sorted(models, reverse=True):
-        if bool(re.search(r"(?i)[-_](safe|sfw)", model)):
-            return model
-    return models[0]
 
 
 
@@ -233,6 +220,22 @@ class HFSearchPipeline:
             return f"https://huggingface.co/{repo_id}/blob/main/{file_name}"
         else:
             return f"https://huggingface.co/{repo_id}"
+    
+    @staticmethod
+    def hf_find_safest_model(models) -> str:
+        """
+        Sort and find the safest model.
+
+        Args:
+            models (list): A list of model names to sort and check.
+
+        Returns:
+            The name of the safest model or the first model in the list if no safe model is found.
+        """
+        for model in sorted(models, reverse=True):
+            if bool(re.search(r"(?i)[-_](safe|sfw)", model)):
+                return model
+        return models[0]
 
 
     @classmethod
@@ -360,7 +363,7 @@ class HFSearchPipeline:
                 else:
                     model_path = repo_id
             elif file_list:
-                file_name = find_safest_model(file_list)
+                file_name = cls.hf_find_safest_model(file_list)
                 if download:
                     model_path = hf_hub_download(
                         repo_id=repo_id,
@@ -430,6 +433,23 @@ class CivitaiSearchPipeline:
     def __init__(self):
         pass
 
+    @staticmethod
+    def civitai_find_safest_model(models) -> str:
+        """
+        Sort and find the safest model.
+
+        Args:
+            models (list): A list of model names to sort and check.
+
+        Returns:
+            The name of the safest model or the first model in the list if no safe model is found.
+        """
+
+        for model in sorted(models,key=lambda x: x["filename"], reverse=True):
+            if bool(re.search(r"(?i)[-_](safe|sfw)", model["filename"])):
+                return model
+        return models[0]
+
     @classmethod
     def for_civitai(
         cls,
@@ -485,11 +505,52 @@ class CivitaiSearchPipeline:
             model_type=model_type,
             civitai_token=civitai_token,
         )
-        if not state:
-            if skip_error:
-                return None
-            else:
-                raise ValueError("No models were found in civitai.")
+       
+        state = []
+        model_ver_list = []
+        version_dict = {}
+
+        params = {"query": query, "types": model_type, "sort": "Most Downloaded"}
+
+        headers = {}
+        if civitai_token:
+            headers["Authorization"] = f"Bearer {civitai_token}"
+
+        try:
+            response = requests.get(
+                "https://civitai.com/api/v1/models", params=params, headers=headers
+            )
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            raise requests.HTTPError(f"Could not get elements from the URL: {err}")
+        else:
+            try:
+                data = response.json()
+            except AttributeError:
+                raise ValueError("Invalid JSON response")
+
+        for items in data["items"]:
+            sorted_repos = sorted(items, key=lambda x: x["stats"]["downloadCount"], reverse=True)
+            for model_versions in sorted_repos["modelVersions"]:
+                files_list = []
+                sorted_model_versions = sorted(model_versions, key=lambda x: x["stats"]["downloadCount"], reverse=True)
+                for model_value in sorted_model_versions["files"]:
+
+                    if all(
+                        model_value["pickleScanResult"] == "Success"
+                        and model_value["virusScanResult"] == "Success"
+                    ):
+                        file_status = {
+                            "filename": model_value["name"],
+                            "download_url": model_value["downloadUrl"],
+                        }
+                        files_list.append(file_status)
+                
+                if files_list:
+                    model_path = cls.civitai_find_safest_model(files_list)
+
+
+
 
         dict_of_civitai_repo = cls.repo_select_civitai(
             state=state, auto=auto, include_hugface=include_hugface
@@ -509,7 +570,7 @@ class CivitaiSearchPipeline:
         model_info["repo_status"]["revision"] = version_data["id"]
         model_info["model_status"]["download_url"] = model_download_url
         model_info["model_status"]["filename"] = file_status_dict["filename"]
-        model_info["model_status"]["file_format"] = file_status_dict["file_format"]
+        #model_info["model_status"]["file_format"] = file_status_dict["file_format"]
         model_info["model_status"]["single_file"] = True
         if download:
             model_save_path = cls.civitai_save_path()
@@ -605,31 +666,22 @@ class CivitaiSearchPipeline:
             sorted_repos = sorted(items, key=lambda x: x["stats"]["downloadCount"], reverse=True)
             for model_versions in sorted_repos["modelVersions"]:
                 files_list = []
-                sorted_model_versions = sorted(items, key=lambda x: x["stats"]["downloadCount"], reverse=True)
-                
-                for model_value in model_ver["files"]:
+                sorted_model_versions = sorted(model_versions, key=lambda x: x["stats"]["downloadCount"], reverse=True)
+                for model_value in sorted_model_versions["files"]:
 
                     if all(
                         model_value["pickleScanResult"] == "Success"
                         and model_value["virusScanResult"] == "Success"
                     ):
-
-
-                    if (
-                        any(
-                            check_word in model_value
-                            for check_word in ["downloadUrl", "name"]
-                        )
-                        and not security_risk
-                    ):
                         file_status = {
                             "filename": model_value["name"],
-                            "file_format": model_value["metadata"]["format"],
                             "download_url": model_value["downloadUrl"],
                         }
                         files_list.append(file_status)
                 
                 if files_list:
+                    model_path = find_safest_model(files_list)
+                    
                     sorted_files_list = natural_sort(files_list)
                     version_dict = {
                         "id": model_ver["id"],
