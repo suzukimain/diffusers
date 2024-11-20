@@ -176,39 +176,57 @@ def get_keyword_types(keyword):
 
 
 
+
+import os
+import re
+from huggingface_hub import HfApi, hf_hub_download
+from dataclasses import asdict
+from natsort import natsorted
+from diffusers import DiffusionPipeline
+
+
+
+
+
 class HFSearchPipeline:
     """
     Huggingface class is used to search and download models from Huggingface.
-
     """
     model_info = {
-        "model_path" : "",
-        "load_type" : "",
-        "repo_status":{
-            "repo_name":"",
-            "repo_id":"",
-            "version_id":""
-            },
-        "model_status":{
-            "search_word" : "",
+        "model_path": "",
+        "load_type": "",
+        "repo_status": {
+            "repo_name": "",
+            "repo_id": "",
+            "version_id": ""
+        },
+        "model_status": {
+            "search_word": "",
             "download_url": "",
-            "filename":"",
+            "filename": "",
             "file_id": "",
             "fp": "",
-            "local" : False,
-            "single_file" : False
-            },
-        }
-    
+            "local": False,
+            "single_file": False
+        },
+    }
+
     def __init__(self):
         pass
+
+    @classmethod
+    def for_HF(cls, search_word, **kwargs):
+        """
+        Class method to search and download models from Hugging Face.
         
-    @classmethod    
-    def for_HF(
-        cls,
-        search_word,
-        **kwargs
-    ):
+        Args:
+            search_word (str): The search keyword for finding models.
+            **kwargs: Additional keyword arguments.
+        
+        Returns:
+            str: The path to the downloaded model or search word.
+        """
+        # Extract additional parameters from kwargs
         auto = kwargs.pop("auto", True)
         branch = kwargs.pop("branch", "main")
         model_format = kwargs.pop("model_format", "single_file")
@@ -218,13 +236,16 @@ class HFSearchPipeline:
         include_params = kwargs.pop("include_params", False)
         pipeline_tag = kwargs.pop("pipeline_tag", None)
         hf_token = kwargs.pop("hf_token", None)
-        skip_Error = kwargs.pop("skip_Error", False)
+        skip_error = kwargs.pop("skip_error", False)
 
-        cls.single_file_only = True if "single_file" == model_format else False
+        cls.single_file_only = model_format == "single_file"
         cls.model_info["model_status"]["search_word"] = search_word
-        cls.model_info["model_status"]["local"] = True if download else False
+        cls.model_info["model_status"]["local"] = download
 
+        # Get the type and loading method for the keyword
         search_word_status = get_keyword_types(search_word)
+
+        # Handle different types of keywords
         if search_word_status["type"]["hf_repo"]:
             if download:
                 model_path = DiffusionPipeline.download(
@@ -247,14 +268,13 @@ class HFSearchPipeline:
                 model_path = search_word
         elif search_word_status["type"]["local"]:
             model_path = search_word
-
         elif search_word_status["type"]["civitai_url"]:
-            if skip_Error:
+            if skip_error:
                 model_path = None
             else:
                 raise ValueError("The URL for Civitai is invalid with `for_hf`. Please use `for_civitai` instead.")
         
-        else:          
+        else:
             # Get model data from HF API
             hf_models = hf_api.list_models(
                 search=search_word,
@@ -278,7 +298,7 @@ class HFSearchPipeline:
                 hf_security_info = hf_repo_info.security_repo_status
                 exclusion = [issue['path'] for issue in hf_security_info['filesWithIssues']]
                 diffusers_model_exists = False
-                if hf_security_info["scansDone"]:                
+                if hf_security_info["scansDone"]:
                     for info in repo_info["siblings"]:
                         file_path = info["rfilename"]
                         if (
@@ -310,7 +330,7 @@ class HFSearchPipeline:
                     else:
                         model_path = repo_id
                 elif file_list:
-                    file_name = natural_sort(file_list)[0]
+                    file_name = natsorted(file_list)[0]
                     if download:
                         model_path = hf_hub_download(
                             repo_id=repo_id,
@@ -318,17 +338,14 @@ class HFSearchPipeline:
                             token=hf_token
                         )
                     else:
-                        model_path = f"https://huggingface.co/{repo_id}/blob/main/{file_name}"             
-
+                        model_path = f"https://huggingface.co/{repo_id}/blob/main/{file_name}"
                 else:
-                    if skip_Error:
+                    if skip_error:
                         model_path = None
                     else:
                         raise ValueError("No models matching your criteria were found on huggingface.")
                     
             
-
-
 
         
         model_path = ""
