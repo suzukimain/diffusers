@@ -495,16 +495,7 @@ class CivitaiSearchPipeline:
                 },
             }
         
-        cls.single_file_only = True if "single_file" == model_format else False
 
-        cls.model_info["model_status"]["search_word"] = search_word
-        cls.model_info["model_status"]["local"] = True if download else False
-
-        state = cls.requests_civitai(
-            query=search_word,
-            model_type=model_type,
-            civitai_token=civitai_token,
-        )
        
         state = []
         model_ver_list = []
@@ -528,13 +519,13 @@ class CivitaiSearchPipeline:
                 data = response.json()
             except AttributeError:
                 raise ValueError("Invalid JSON response")
+        # Put the repo sorting process on this line.
 
-        for items in data["items"]:
-            sorted_repos = sorted(items, key=lambda x: x["stats"]["downloadCount"], reverse=True)
-            for model_versions in sorted_repos["modelVersions"]:
+        for repos in data["items"]:
+            sorted_repos = sorted(repos, key=lambda x: x["stats"]["downloadCount"], reverse=True)
+            for selected_repo in sorted_repos["modelVersions"]:
                 files_list = []
-                sorted_model_versions = sorted(model_versions, key=lambda x: x["stats"]["downloadCount"], reverse=True)
-                for model_value in sorted_model_versions["files"]:
+                for model_value in selected_repo["files"]:
 
                     if all(
                         model_value["pickleScanResult"] == "Success"
@@ -548,51 +539,44 @@ class CivitaiSearchPipeline:
                 
                 if files_list:
                     model_path = cls.civitai_find_safest_model(files_list)
-
-
-
-
-        dict_of_civitai_repo = cls.repo_select_civitai(
-            state=state, auto=auto, include_hugface=include_hugface
-        )
-
-        if not dict_of_civitai_repo:
-            return None
-        
-        version_data = sorted(dict_of_civitai_repo["version_list"], key=lambda x: x["downloadCount"], reverse=True)[0]["files"]
-
-        files_list = version_data["files"]
-        file_status_dict = cls.file_select_civitai(state_list=files_list, auto=auto)
-        
-        model_download_url = file_status_dict["download_url"]
-        model_info["repo_status"]["repo_name"] = dict_of_civitai_repo["repo_name"]
-        model_info["repo_status"]["repo_id"] = dict_of_civitai_repo["repo_id"]
-        model_info["repo_status"]["revision"] = version_data["id"]
-        model_info["model_status"]["download_url"] = model_download_url
-        model_info["model_status"]["filename"] = file_status_dict["filename"]
-        #model_info["model_status"]["file_format"] = file_status_dict["file_format"]
-        model_info["model_status"]["single_file"] = True
+                    model_info["model_status"]["download_url"] = model_path
+                    break
+            else:
+                continue
+            break
+        # Handle file download and setting model information
         if download:
             model_save_path = cls.civitai_save_path()
             model_info["model_path"] = model_save_path
             model_info["load_type"] = "from_single_file"
             cls.download_model(
-                url=model_download_url,
+                url=model_info["model_status"]["download_url"],
                 save_path=model_save_path,
                 civitai_token=civitai_token,
             )
         else:
             model_info["model_path"] = model_info["model_status"]["download_url"]
             model_info["load_type"] = ""
-    
+
+        # Return appropriate result based on include_params
         if not include_params:
             return model_info["model_path"]
         else:
             return SearchPipelineOutput(
                 model_path=model_info["model_path"],
-                load_type=model_info["load_type"],
-                repo_status=RepoStatus(**model_info["repo_status"]),
-                model_status=ModelStatus(**model_info["model_status"])
+                loading_method=model_info["load_type"],
+                model_format=model_format,
+                repo_status=RepoStatus(
+                    repo_id=model_info["repo_status"]["repo_id"],
+                    repo_hash=model_info["repo_status"]["repo_hash"],
+                    revision=model_info["repo_status"]["revision"]
+                ),
+                model_status=ModelStatus(
+                    search_word=model_info["model_status"]["search_word"],
+                    download_url=model_info["model_status"]["download_url"],
+                    filename=model_info["model_status"]["filename"],
+                    local=model_info["model_status"]["local"]
+                )
             )
 
 
