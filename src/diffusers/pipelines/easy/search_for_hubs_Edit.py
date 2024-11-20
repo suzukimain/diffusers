@@ -10,8 +10,6 @@ from huggingface_hub import (
     login,
     )
 
-import diffusers
-
 from ...utils import logging
 from ...utils.import_utils import is_natsort_available
 from ..pipeline_utils import DiffusionPipeline
@@ -228,6 +226,25 @@ class HFSearchPipeline:
                 return model
         return models[0]
 
+
+    @staticmethod
+    def create_huggingface_url(repo_id, file_name):
+        """
+        Create a Hugging Face URL for a given repository ID and file name.
+        
+        Args:
+            repo_id (str): The repository ID.
+            file_name (str): The file name within the repository.
+        
+        Returns:
+            str: The complete URL to the file or repository on Hugging Face.
+        """
+        if file_name:
+            return f"https://huggingface.co/{repo_id}/blob/main/{file_name}"
+        else:
+            return f"https://huggingface.co/{repo_id}"
+
+
     @classmethod
     def for_HF(cls, search_word, **kwargs):
         """
@@ -242,7 +259,6 @@ class HFSearchPipeline:
         """
         # Extract additional parameters from kwargs
         auto = kwargs.pop("auto", True)
-        branch = kwargs.pop("branch", "main")
         revision = kwargs.pop("revision", None)
         model_format = kwargs.pop("model_format", "single_file")
         model_type = kwargs.pop("model_type", "Checkpoint")
@@ -265,7 +281,7 @@ class HFSearchPipeline:
             if download:
                 model_path = DiffusionPipeline.download(
                     search_word,
-                    branch=branch,
+                    revision=revision,
                     token=hf_token
                 )
             else:
@@ -304,8 +320,9 @@ class HFSearchPipeline:
             model_dicts = [asdict(value) for value in list(hf_models)]
             hf_repo_info={}
             file_list = []
-
-
+            repo_id=""
+            
+            # Loop through models to find a suitable candidate
             for repo_info in model_dicts:
                 repo_id = repo_info["id"]
                 file_list = []
@@ -315,6 +332,8 @@ class HFSearchPipeline:
                 )
                 hf_security_info = hf_repo_info.security_repo_status
                 exclusion = [issue['path'] for issue in hf_security_info['filesWithIssues']]
+
+                # Check models or valid files for multi-folder diffusers
                 diffusers_model_exists = False
                 if hf_security_info["scansDone"]:
                     for info in repo_info["siblings"]:
@@ -333,97 +352,65 @@ class HFSearchPipeline:
                             and (file_path not in exclusion)
                         ):
                             file_list.append(file_path)
-                if (
-                    diffusers_model_exists
-                    or file_list
-                ):
+                
+                # Exit from the loop if a multi-folder diffusers model or valid file is found
+                if diffusers_model_exists or file_list:
                     break
             else:
-                if diffusers_model_exists:
-                    if download:
-                        model_path = DiffusionPipeline.download(
-                            repo_id=repo_id,
-                            token=hf_token,
-                        )
-                    else:
-                        model_path = repo_id
-                elif file_list:
-                    file_name = cls.find_safest_model(file_list)
-                    if download:
-                        model_path = hf_hub_download(
-                            repo_id=repo_id,
-                            filename=file_name,
-                            revision=revision,
-                            token=hf_token
-                        )
-                    else:
-                        model_path = f"https://huggingface.co/{repo_id}/blob/{branch}/{file_name}"
+                # Handle case where no models match the criteria
+                if skip_error:
+                    return None
                 else:
-                    if skip_error:
-                        model_path = None
-                    else:
-                        raise ValueError("No models matching your criteria were found on huggingface.")
-        
+                    raise ValueError("No models matching your criteria were found on huggingface.")
+            
+            download_url = cls.create_huggingface_url(
+                repo_id=repo_id, file_name=file_name
+            )
+            if diffusers_model_exists:
+                if download:
+                    model_path = DiffusionPipeline.download(
+                        repo_id=repo_id,
+                        token=hf_token,
+                    )
+                else:
+                    model_path = repo_id
+            elif file_list:
+                file_name = cls.find_safest_model(file_list)
+                if download:
+                    model_path = hf_hub_download(
+                        repo_id=repo_id,
+                        filename=file_name,
+                        revision=revision,
+                        token=hf_token
+                    )
+                else:
+                    model_path = cls.create_huggingface_url(
+                        repo_id=repo_id, file_name=file_name
+                    )
         
         output_info = get_keyword_types(model_path)
 
         if include_params:
-                return SearchPipelineOutput(
-                    model_path=model_path,
-                    loading_method=output_info["loading_method"],
-                    repo_status=RepoStatus(**cls.model_info["repo_status"]),
-                    model_status=ModelStatus(**cls.model_info["model_status"])
-                    )
-            
-
-        
-        model_path = ""
-        model_name = cls.model_name_search(
-            model_name=search_word,
-            auto_set=auto,
-            model_format=model_format,
-            include_civitai=include_civitai
-            )
-        if not model_name is None:
-            file_path = cls.file_name_set(
-                search_word=model_name,
-                auto=auto,
-                model_format=model_format,
-                model_type=model_type
+            return SearchPipelineOutput(
+                model_path=model_path,
+                loading_method=output_info["loading_method"],
+                model_format=output_info["model_format"],
+                repo_status=RepoStatus(
+                    repo_id=repo_id,
+                    repo_hash=hf_repo_info["sha"],
+                    revision=revision
+                ),
+                model_status=ModelStatus(
+                    search_word=search_word,
+                    download_url=download_url,
+                    filename=file_name,
+                    local=output_info["type"]["local"],
                 )
-            if file_path == "DiffusersFormat":
-                if download:
-                    model_path = cls.run_hf_download(
-                        model_name,
-                        branch=cls.branch
-                        )
-                else:
-                    model_path = model_name
-                cls.model_info["model_path"] = model_path
-                cls.model_info["model_status"]["single_file"] = False
-                cls.model_info["load_type"] = "from_pretrained"
-
-            else:
-                hf_model_path = f"https://huggingface.co/{model_name}/blob/{branch}/{file_path}"
-                if download:
-                    model_path = cls.run_hf_download(hf_model_path)
-                else:
-                    model_path = hf_model_path
-                cls.model_info["model_status"]["single_file"] = True
-                cls.model_info["load_type"] = "from_single_file"
-                cls.model_info["model_status"]["filename"] = file_path
-
-            if include_params:
-                return SearchPipelineOutput(
-                    model_path=cls.model_info["model_path"],
-                    load_type=cls.model_info["load_type"],
-                    repo_status=RepoStatus(**cls.model_info["repo_status"]),
-                    model_status=ModelStatus(**cls.model_info["model_status"])
-                    )
-            else:
-                return model_path
+            )
+        
         else:
-            return None
+            return model_path    
+
 
 
     def repo_name_or_path(self, model_name_or_path):

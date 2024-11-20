@@ -6,12 +6,12 @@ class RepoStatus:
     Data class for storing repository status information.
 
     Attributes:
-        repo_name (str): The name of the repository.
-        repo_id (str): The ID of the repository.
+        repo_id (str): The name of the repository.
+        repo_hash (str): The hash of the repository.
         revision (str): The version ID of the repository.
     """
-    repo_name: str = ""
     repo_id: str = ""
+    repo_hash: str = ""
     revision: str = ""
 
 
@@ -27,13 +27,11 @@ class ModelStatus:
         file_id (str): The ID of the model file.
         fp (str): Floating-point precision formats.
         local (bool): Whether the model is stored locally.
-        single_file (bool): Whether the model is a single file.
     """
     search_word: str = ""
     download_url: str = ""
     filename: str = ""
     local: bool = False
-    single_file: bool = False
 
 
 @dataclass
@@ -49,5 +47,6 @@ class SearchPipelineOutput:
     """
     model_path: str = ""
     loading_method: str = ""  # "" or "from_single_file" or "from_pretrained"
+    model_format: str # single_file or diffusers
     repo_status: RepoStatus = RepoStatus()
     model_status: ModelStatus = ModelStatus()
