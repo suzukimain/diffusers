@@ -8,22 +8,20 @@ from huggingface_hub import (
     hf_api,
     hf_hub_download,
     login,
-    )
+)
 
 from ...utils import logging
-from ...utils.import_utils import is_natsort_available
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import (
     SearchPipelineOutput,
     ModelStatus,
     RepoStatus,
-    )
+)
 from ...loaders.single_file_utils import (
     VALID_URL_PREFIXES,
     is_valid_url,
     _extract_repo_id_and_weights_name,
-    )
-
+)
 
 
 CUSTOM_SEARCH_KEY = {
@@ -34,8 +32,9 @@ CUSTOM_SEARCH_KEY = {
 CONFIG_FILE_LIST = [
     "preprocessor_config.json",
     "config.json",
-    "model.fp16.safetensors",
     "model.safetensors",
+    "model.fp16.safetensors",
+    "model.ckpt",
     "pytorch_model.bin",
     "pytorch_model.fp16.bin",
     "scheduler_config.json",
@@ -44,53 +43,40 @@ CONFIG_FILE_LIST = [
     "vocab.json",
     "diffusion_pytorch_model.bin",
     "diffusion_pytorch_model.fp16.bin",
+    "diffusion_pytorch_model.safetensors",
     "diffusion_pytorch_model.fp16.safetensors",
+    "diffusion_pytorch_model.ckpt",
+    "diffusion_pytorch_model.fp16.ckpt",
     "diffusion_pytorch_model.non_ema.bin",
     "diffusion_pytorch_model.non_ema.safetensors",
-    "diffusion_pytorch_model.safetensors",
+    "safety_checker/pytorch_model.bin",
     "safety_checker/model.safetensors",
-    "unet/diffusion_pytorch_model.safetensors",
-    "vae/diffusion_pytorch_model.safetensors",
-    "text_encoder/model.safetensors",
-    "unet/diffusion_pytorch_model.fp16.safetensors",
-    "text_encoder/model.fp16.safetensors",
-    "vae/diffusion_pytorch_model.fp16.safetensors",
-    "safety_checker/model.fp16.safetensors",
     "safety_checker/model.ckpt",
+    "safety_checker/model.fp16.safetensors",
+    "safety_checker/model.fp16.ckpt",
+    "unet/diffusion_pytorch_model.bin",
+    "unet/diffusion_pytorch_model.safetensors",
+    "unet/diffusion_pytorch_model.fp16.safetensors",
     "unet/diffusion_pytorch_model.ckpt",
+    "unet/diffusion_pytorch_model.fp16.ckpt",
+    "vae/diffusion_pytorch_model.bin",
+    "vae/diffusion_pytorch_model.safetensors",
+    "vae/diffusion_pytorch_model.fp16.safetensors",
     "vae/diffusion_pytorch_model.ckpt",
+    "vae/diffusion_pytorch_model.fp16.ckpt",
+    "text_encoder/pytorch_model.bin",
+    "text_encoder/model.safetensors",
+    "text_encoder/model.fp16.safetensors",
     "text_encoder/model.ckpt",
     "text_encoder/model.fp16.ckpt",
-    "safety_checker/model.fp16.ckpt",
-    "unet/diffusion_pytorch_model.fp16.ckpt",
-    "vae/diffusion_pytorch_model.fp16.ckpt"
+    "text_encoder_2/model.safetensors",
+    "text_encoder_2/model.ckpt"
 ]
 
 EXTENSION =  [".safetensors", ".ckpt",".bin"]
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
-
-
-
-if is_natsort_available():
-    from natsort import natsorted
-
-
-def natural_sort(sorted_list) -> list:
-    """
-    Sort a list of version strings in descending order.
-    
-    Args:
-        sorted_list (list): List of version strings to be sorted.
-        
-    Returns:
-        list: Sorted list of version strings in descending order.
-    """
-    if is_natsort_available():
-        return natsorted(sorted_list, reverse=True)
-    else:
-        return sorted(sorted_list, reverse=True)
 
 
 
@@ -174,21 +160,23 @@ def get_keyword_types(keyword):
 
 
 
-
-import os
-import re
-from huggingface_hub import HfApi, hf_hub_download
-from dataclasses import asdict
-from natsort import natsorted
-from diffusers import DiffusionPipeline
-
-
-
-
-
 class HFSearchPipeline:
     """
-    Huggingface class is used to search and download models from Huggingface.
+    Search for models from Huggingface.
+
+    Examples:
+
+        ```py
+        >>> from diffusers import DiffusionPipeline
+
+        >>> # Download pipeline from huggingface.co and cache.
+        >>> pipeline = DiffusionPipeline.from_pretrained("CompVis/ldm-text2im-large-256")
+
+        >>> # Download pipeline that requires an authorization token
+        >>> # For more information on access tokens, please refer to this section
+        >>> # of the documentation](https://huggingface.co/docs/hub/security-tokens)
+        >>> pipeline = DiffusionPipeline.from_pretrained("runwayml/stable-diffusion-v1-5")
+
     """
     model_info = {
         "model_path": "",
@@ -258,20 +246,14 @@ class HFSearchPipeline:
             str: The path to the downloaded model or search word.
         """
         # Extract additional parameters from kwargs
-        auto = kwargs.pop("auto", True)
         revision = kwargs.pop("revision", None)
         model_format = kwargs.pop("model_format", "single_file")
-        model_type = kwargs.pop("model_type", "Checkpoint")
         download = kwargs.pop("download", False)
         force_download = kwargs.pop("force_download", False)
         include_params = kwargs.pop("include_params", False)
         pipeline_tag = kwargs.pop("pipeline_tag", None)
         hf_token = kwargs.pop("hf_token", None)
         skip_error = kwargs.pop("skip_error", False)
-
-        cls.single_file_only = model_format == "single_file"
-        cls.model_info["model_status"]["search_word"] = search_word
-        cls.model_info["model_status"]["local"] = download
 
         # Get the type and loading method for the keyword
         search_word_status = get_keyword_types(search_word)
@@ -309,7 +291,7 @@ class HFSearchPipeline:
             # Get model data from HF API
             hf_models = hf_api.list_models(
                 search=search_word,
-                sort="trending_score",
+                sort="downloads",
                 direction=-1,
                 limit=100,
                 fetch_config=True,
@@ -318,9 +300,10 @@ class HFSearchPipeline:
                 token=hf_token
             )
             model_dicts = [asdict(value) for value in list(hf_models)]
-            hf_repo_info={}
+            
+            hf_repo_info = {}
             file_list = []
-            repo_id=""
+            repo_id, file_name = "", ""
             
             # Loop through models to find a suitable candidate
             for repo_info in model_dicts:
@@ -330,10 +313,11 @@ class HFSearchPipeline:
                     repo_id=repo_id,
                     securityStatus=True
                 )
+                # Lists files with security issues.
                 hf_security_info = hf_repo_info.security_repo_status
                 exclusion = [issue['path'] for issue in hf_security_info['filesWithIssues']]
 
-                # Check models or valid files for multi-folder diffusers
+                # Checks for multi-folder diffusers model or valid files (models with security issues are excluded).
                 diffusers_model_exists = False
                 if hf_security_info["scansDone"]:
                     for info in repo_info["siblings"]:
@@ -341,7 +325,6 @@ class HFSearchPipeline:
                         if (
                             "model_index.json" == file_path
                             and model_format in ["diffusers", "all"]
-                            and model_type == "Checkpoint"
                         ):
                             diffusers_model_exists = True
                             break
@@ -404,7 +387,7 @@ class HFSearchPipeline:
                     search_word=search_word,
                     download_url=download_url,
                     filename=file_name,
-                    local=output_info["type"]["local"],
+                    local=download,
                 )
             )
         

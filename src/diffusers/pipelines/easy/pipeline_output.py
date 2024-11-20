@@ -47,6 +47,6 @@ class SearchPipelineOutput:
     """
     model_path: str = ""
     loading_method: str = ""  # "" or "from_single_file" or "from_pretrained"
-    model_format: str # single_file or diffusers
+    model_format: str = None # "single_file" or "diffusers"
     repo_status: RepoStatus = RepoStatus()
     model_status: ModelStatus = ModelStatus()
