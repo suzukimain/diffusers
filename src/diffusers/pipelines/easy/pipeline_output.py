@@ -8,11 +8,11 @@ class RepoStatus:
     Attributes:
         repo_name (str): The name of the repository.
         repo_id (str): The ID of the repository.
-        version_id (str): The version ID of the repository.
+        revision (str): The version ID of the repository.
     """
     repo_name: str = ""
     repo_id: str = ""
-    version_id: str = ""
+    revision: str = ""
 
 
 @dataclass
@@ -32,8 +32,6 @@ class ModelStatus:
     search_word: str = ""
     download_url: str = ""
     filename: str = ""
-    file_id: str = ""
-    fp: str = ""
     local: bool = False
     single_file: bool = False
 

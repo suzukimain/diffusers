@@ -198,7 +198,7 @@ class HFSearchPipeline:
         "repo_status": {
             "repo_name": "",
             "repo_id": "",
-            "version_id": ""
+            "revision": ""
         },
         "model_status": {
             "search_word": "",
@@ -1192,7 +1192,7 @@ class CivitaiSearchPipeline:
             "repo_status":{
                 "repo_name":"",
                 "repo_id":"",
-                "version_id":""
+                "revision":""
                 },
             "model_status":{
                 "search_word" : "",
@@ -1233,7 +1233,7 @@ class CivitaiSearchPipeline:
         model_download_url = file_status_dict["download_url"]
         model_info["repo_status"]["repo_name"] = dict_of_civitai_repo["repo_name"]
         model_info["repo_status"]["repo_id"] = dict_of_civitai_repo["repo_id"]
-        model_info["repo_status"]["version_id"] = version_data["id"]
+        model_info["repo_status"]["revision"] = version_data["id"]
         model_info["model_status"]["download_url"] = model_download_url
         model_info["model_status"]["filename"] = file_status_dict["filename"]
         model_info["model_status"]["file_format"] = file_status_dict["file_format"]
@@ -1518,7 +1518,7 @@ class CivitaiSearchPipeline:
         if auto:
             result = max(ver_list, key=lambda x: x["downloadCount"])
             #version_files_list = natural_sort(result["files"])
-            #self.model_info["repo_status"]["version_id"] = result["id"]
+            #self.model_info["repo_status"]["revision"] = result["id"]
             return result
         else:
             if recursive:
@@ -1625,7 +1625,7 @@ class CivitaiSearchPipeline:
         - str: Save path.
         """
         repo_level_dir = str(self.model_info["repo_status"]["repo_id"])
-        file_version_dir = str(self.model_info["repo_status"]["version_id"])
+        file_version_dir = str(self.model_info["repo_status"]["revision"])
         save_file_name = str(self.model_info["model_status"]["filename"])
         save_path = os.path.join(
             self.base_civitai_dir, repo_level_dir, file_version_dir, save_file_name
