@@ -439,15 +439,15 @@ class CivitaiSearchPipeline:
         Sort and find the safest model.
 
         Args:
-            models (list): A list of model names to sort and check.
+            models (list): A list of model names to check.
 
         Returns:
             The name of the safest model or the first model in the list if no safe model is found.
         """
 
-        for model in sorted(models,key=lambda x: x["filename"], reverse=True):
-            if bool(re.search(r"(?i)[-_](safe|sfw)", model["filename"])):
-                return model
+        for model_data in models:
+            if bool(re.search(r"(?i)[-_](safe|sfw)", model_data["filename"])):
+                return model_data
         return models[0]
 
     @classmethod
@@ -469,13 +469,11 @@ class CivitaiSearchPipeline:
         Returns:
         - SearchPipelineOutput
         """
-        auto = kwargs.pop("auto", True)
         model_type = kwargs.pop("model_type", "Checkpoint")
         model_format = kwargs.pop("model_format", "single_file")
         download = kwargs.pop("download", False)
         civitai_token = kwargs.pop("civitai_token", None)
         include_params = kwargs.pop("include_params", False)
-        include_hugface = kwargs.pop("include_hugface",True)
         skip_error = kwargs.pop("skip_error", True)
 
         model_info = {
@@ -520,25 +518,30 @@ class CivitaiSearchPipeline:
             except AttributeError:
                 raise ValueError("Invalid JSON response")
         # Put the repo sorting process on this line.
+        sorted_repos = sorted(data["items"], key=lambda x: x["stats"]["downloadCount"], reverse=True)
 
-        for repos in data["items"]:
-            sorted_repos = sorted(repos, key=lambda x: x["stats"]["downloadCount"], reverse=True)
-            for selected_repo in sorted_repos["modelVersions"]:
-                files_list = []
-                for model_value in selected_repo["files"]:
-
-                    if all(
-                        model_value["pickleScanResult"] == "Success"
-                        and model_value["virusScanResult"] == "Success"
+        for selected_repo in sorted_repos:
+            
+            sorted_versions = sorted(selected_repo["modelVersions"], key=lambda x: x["stats"]["downloadCount"], reverse=True)
+            for selected_version in sorted_versions:
+                repo_id = selected_version["modelId"]
+                version_id = selected_version["id"]
+                models_list = []
+                for model_data in selected_version["files"]:
+                    if (
+                        model_data["pickleScanResult"] == "Success"
+                        and model_data["virusScanResult"] == "Success"
+                        and any(model_data.endswith(ext) for ext in EXTENSION)
                     ):
                         file_status = {
-                            "filename": model_value["name"],
-                            "download_url": model_value["downloadUrl"],
+                            "filename": model_data["name"],
+                            "download_url": model_data["downloadUrl"],
                         }
-                        files_list.append(file_status)
+                        models_list.append(file_status)
                 
-                if files_list:
-                    model_path = cls.civitai_find_safest_model(files_list)
+                if models_list:
+                    sorted_models = sorted(models_list, key=lambda x: x["filename"], reverse=True)
+                    model_path = cls.civitai_find_safest_model(sorted_models)
                     model_info["model_status"]["download_url"] = model_path
                     break
             else:
