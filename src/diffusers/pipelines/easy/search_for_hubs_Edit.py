@@ -288,7 +288,7 @@ class HFSearchPipeline:
             model_path = search_word
         elif search_word_status["type"]["civitai_url"]:
             if skip_error:
-                model_path = None
+                return None
             else:
                 raise ValueError("The URL for Civitai is invalid with `for_hf`. Please use `for_civitai` instead.")
         
@@ -470,8 +470,8 @@ class CivitaiSearchPipeline:
         - SearchPipelineOutput
         """
         model_type = kwargs.pop("model_type", "Checkpoint")
-        model_format = kwargs.pop("model_format", "single_file")
         download = kwargs.pop("download", False)
+        force_download = kwargs.pop("force_download", False)
         civitai_token = kwargs.pop("civitai_token", None)
         include_params = kwargs.pop("include_params", False)
         skip_error = kwargs.pop("skip_error", True)
@@ -493,13 +493,7 @@ class CivitaiSearchPipeline:
                 },
             }
         
-
-       
-        state = []
-        model_ver_list = []
-        version_dict = {}
-
-        params = {"query": query, "types": model_type, "sort": "Most Downloaded"}
+        params = {"query": search_word, "types": model_type, "sort": "Most Downloaded"}
 
         headers = {}
         if civitai_token:
@@ -516,7 +510,10 @@ class CivitaiSearchPipeline:
             try:
                 data = response.json()
             except AttributeError:
-                raise ValueError("Invalid JSON response")
+                if skip_error:
+                    return None
+                else:
+                    raise ValueError("Invalid JSON response")
         # Put the repo sorting process on this line.
         sorted_repos = sorted(data["items"], key=lambda x: x["stats"]["downloadCount"], reverse=True)
 
@@ -543,7 +540,6 @@ class CivitaiSearchPipeline:
                 if models_list:
                     sorted_models = sorted(models_list, key=lambda x: x["filename"], reverse=True)
                     selected_model = cls.civitai_find_safest_model(sorted_models)
-                    #model_info["model_status"]["download_url"] = model_path
                     break
             else:
                 continue
@@ -553,40 +549,32 @@ class CivitaiSearchPipeline:
         download_url = selected_model["download_url"]
         # Handle file download and setting model information
         if download:
-            model_info["load_type"] = "from_single_file"
             model_path = f"/root/.cache/Civitai/{repo_id}/{version_id}/{file_name}"
-            
-            headers = {}
-            if civitai_token:
-                headers["Authorization"] = f"Bearer {civitai_token}" 
-            try:
-                response = requests.get(download_url, stream=True, headers=headers)
-                response.raise_for_status()
-            except requests.HTTPError:
-                raise requests.HTTPError(f"Invalid URL: {download_url}, {response.status_code}")
-            
             os.makedirs(os.path.dirname(model_path), exist_ok=True)
-
-            with tqdm.wrapattr(
-                open(model_path, "wb"),
-                "write",
-                miniters=1,
-                desc=file_name,
-                total=int(response.headers.get("content-length", 0)),
-            ) as fetched_model_info:
-                for chunk in response.iter_content(chunk_size=8192):
-                    fetched_model_info.write(chunk)
-
+            if (not os.path.exists(model_path)) or force_download:
+                headers = {}
+                if civitai_token:
+                    headers["Authorization"] = f"Bearer {civitai_token}" 
+                
+                try:
+                    response = requests.get(download_url, stream=True, headers=headers)
+                    response.raise_for_status()
+                except requests.HTTPError:
+                    raise requests.HTTPError(f"Invalid URL: {download_url}, {response.status_code}")
+                
+                with tqdm.wrapattr(
+                    open(model_path, "wb"),
+                    "write",
+                    miniters=1,
+                    desc=file_name,
+                    total=int(response.headers.get("content-length", 0)),
+                ) as fetched_model_info:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        fetched_model_info.write(chunk)
 
         else:
-            model_info["model_path"] = model_info["model_status"]["download_url"]
-            model_info["load_type"] = ""
+            model_path = download_url
 
-        
-
-        model_info["model_path"] = model_save_path
-            model_info["load_type"] = "from_single_file"
-            
         output_info = get_keyword_types(model_path)
 
         # Return appropriate result based on include_params
