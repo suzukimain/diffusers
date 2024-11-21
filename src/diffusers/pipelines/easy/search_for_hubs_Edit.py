@@ -7,7 +7,6 @@ from dataclasses import asdict
 from huggingface_hub import (
     hf_api,
     hf_hub_download,
-    login,
 )
 
 from ...utils import logging
@@ -19,7 +18,6 @@ from .pipeline_output import (
 )
 from ...loaders.single_file_utils import (
     VALID_URL_PREFIXES,
-    is_valid_url,
     _extract_repo_id_and_weights_name,
 )
 
@@ -94,7 +92,7 @@ def get_keyword_types(keyword):
     
     # Initialize the status dictionary with default values
     status = {
-        "model_format": None,
+        "checkpoint_format": None,
         "loading_method": None,
         "type": {
             "search_word": False,
@@ -115,13 +113,13 @@ def get_keyword_types(keyword):
     # Check if the keyword is a file
     if os.path.isfile(keyword):
         status["type"]["local"] = True
-        status["model_format"] = "single_file"
+        status["checkpoint_format"] = "single_file"
         status["loading_method"] = "from_single_file"
     
     # Check if the keyword is a directory
     elif os.path.isdir(keyword):
         status["type"]["local"] = True
-        status["model_format"] = "diffusers"
+        status["checkpoint_format"] = "diffusers"
         status["loading_method"] = "from_pretrained"
         if not os.path.exists(os.path.join(keyword, "model_index.json")):
             status["extra_type"]["missing_model_index"] = True
@@ -129,7 +127,7 @@ def get_keyword_types(keyword):
     # Check if the keyword is a Civitai URL
     elif keyword.startswith("https://civitai.com/"):
         status["type"]["civitai_url"] = True
-        status["model_format"] = "single_file"
+        status["checkpoint_format"] = "single_file"
         status["loading_method"] = None
     
     # Check if the keyword starts with any valid URL prefixes
@@ -137,23 +135,23 @@ def get_keyword_types(keyword):
         repo_id, weights_name = _extract_repo_id_and_weights_name(keyword)
         if weights_name:
             status["type"]["hf_url"] = True
-            status["model_format"] = "single_file"
+            status["checkpoint_format"] = "single_file"
             status["loading_method"] = "from_single_file"
         else:
             status["type"]["hf_repo"] = True
-            status["model_format"] = "diffusers"
+            status["checkpoint_format"] = "diffusers"
             status["loading_method"] = "from_pretrained"
     
     # Check if the keyword matches a Hugging Face repository format
     elif re.match(r"^[^/]+/[^/]+$", keyword):
         status["type"]["hf_repo"] = True
-        status["model_format"] = "diffusers"
+        status["checkpoint_format"] = "diffusers"
         status["loading_method"] = "from_pretrained"
     
     # If none of the above, treat it as a search word
     else:
         status["type"]["search_word"] = True
-        status["model_format"] = None
+        status["checkpoint_format"] = None
         status["loading_method"] = None
     
     return status
@@ -167,20 +165,6 @@ def get_keyword_types(keyword):
 class HFSearchPipeline:
     """
     Search for models from Huggingface.
-
-    Examples:
-
-        ```py
-        >>> from diffusers import DiffusionPipeline
-
-        >>> # Download pipeline from huggingface.co and cache.
-        >>> pipeline = DiffusionPipeline.from_pretrained("CompVis/ldm-text2im-large-256")
-
-        >>> # Download pipeline that requires an authorization token
-        >>> # For more information on access tokens, please refer to this section
-        >>> # of the documentation](https://huggingface.co/docs/hub/security-tokens)
-        >>> pipeline = DiffusionPipeline.from_pretrained("runwayml/stable-diffusion-v1-5")
-
     """
     model_info = {
         "model_path": "",
@@ -201,7 +185,6 @@ class HFSearchPipeline:
 
     def __init__(self):
         pass
-    
     
 
     @staticmethod
@@ -252,7 +235,7 @@ class HFSearchPipeline:
         """
         # Extract additional parameters from kwargs
         revision = kwargs.pop("revision", None)
-        model_format = kwargs.pop("model_format", "single_file")
+        checkpoint_format = kwargs.pop("checkpoint_format", "single_file")
         download = kwargs.pop("download", False)
         force_download = kwargs.pop("force_download", False)
         include_params = kwargs.pop("include_params", False)
@@ -329,7 +312,7 @@ class HFSearchPipeline:
                         file_path = info["rfilename"]
                         if (
                             "model_index.json" == file_path
-                            and model_format in ["diffusers", "all"]
+                            and checkpoint_format in ["diffusers", "all"]
                         ):
                             diffusers_model_exists = True
                             break
@@ -382,7 +365,7 @@ class HFSearchPipeline:
             return SearchPipelineOutput(
                 model_path=model_path,
                 loading_method=output_info["loading_method"],
-                model_format=output_info["model_format"],
+                checkpoint_format=output_info["checkpoint_format"],
                 repo_status=RepoStatus(
                     repo_id=repo_id,
                     repo_hash=hf_repo_info["sha"],
@@ -600,7 +583,7 @@ class CivitaiSearchPipeline:
             return SearchPipelineOutput(
                 model_path=model_path,
                 loading_method=output_info["loading_method"],
-                model_format=output_info["model_format"],
+                checkpoint_format=output_info["checkpoint_format"],
                 repo_status=RepoStatus(
                     repo_id=repo_name,
                     repo_hash=repo_id,
@@ -630,347 +613,35 @@ class ModelSearchPipeline(
         cls,
         search_word: str,
         **kwargs
-    ) -> Union[str, SearchPipelineOutput]:
-        """Search and retrieve model information from various sources.
+    ) -> Union[None, str, SearchPipelineOutput]:
+        """
+        Search and retrieve model information from various sources (e.g., Hugging Face or CivitAI).
+
+        This method allows flexible searching of models across different hubs. It accepts several parameters 
+        to customize the search behavior, such as filtering by model type, format, or priority hub. Additionally, 
+        it supports authentication tokens for private or restricted access.
 
         Args:
-            search_word: The search term to find the model.
-            auto: Whether to automatically select the best match.
-            download: Whether to download the model locally.
-            model_type: Type of model ("single_file", "diffusers", "all").
-            model_format: Format of the model (e.g., "Checkpoint", "LORA").
-            branch: The repository branch to search in.
-            priority_hub: Which model hub to prioritize ("huggingface" or "civitai").
-            local_file_only: Whether to search only in local files.
-            include_params: Whether to include additional model parameters in output.
-            hf_token: HuggingFace API token for authentication.
-            civitai_token: Civitai API token for authentication.            
+            search_word (str): The search term or keyword used to locate the desired model.
+            download (bool, optional): Whether to download the model locally after finding it. Defaults to False.
+            model_type (str, optional): Type of the model to search for (e.g., "Checkpoint", "LORA"). Defaults to "Checkpoint".
+            checkpoint_format (str, optional): Specifies the format of the model (e.g., "single_file", "diffusers"). Defaults to "single_file".
+            branch (str, optional): The branch of the repository to search in. Defaults to "main".
+            include_params (bool, optional): Whether to include additional parameters about the model in the output. Defaults to False.
+            hf_token (str, optional): Hugging Face API token for authentication. Required for private or restricted models.
+            civitai_token (str, optional): CivitAI API token for authentication. Required for private or restricted models.
 
         Returns:
-            Either a string path to the model or a SearchPipelineOutput object with
-            full model information if include_params is True.
-
-        Raises:
-            ValueError: If the model cannot be found or accessed.
+            Union[None, str, SearchPipelineOutput]:
+                - `None`: If no model is found or accessible.
+                - `str`: A string path to the retrieved model if `include_params=False`.
+                - `SearchPipelineOutput`: Detailed model information if `include_params=True`.
         """
-        auto = kwargs.pop("auto", True)
-        download = kwargs.pop("download", False)
-        model_type = kwargs.pop("model_type", "Checkpoint")
-        model_format = kwargs.pop("model_format","single_file" )
-        branch = kwargs.pop("branch", "main")
-        priority_hub = kwargs.pop("priority_hub", "huggingface")
-        include_params = kwargs.pop("include_params", False)
-        local_file_only = kwargs.pop("local_search_only", False)
-        civitai_token = kwargs.pop("civitai_token", None)
-
-        if "hf_token" in kwargs:
-            hf_token = kwargs.pop("hf_token", None)
-            login(token=hf_token)        
-        
-        cls.single_file_only = True if "single_file" == model_format else False
-
-        cls.model_info["model_status"]["search_word"] = search_word
-        cls.model_info["model_status"]["local"] = True if download or local_file_only else False
-
-        result = cls.model_set(
-            search_word=search_word,
-            auto=auto,
-            download=download,
-            model_format=model_format,
-            model_type=model_type,
-            branch=branch,
-            priority_hub=priority_hub,
-            local_file_only=local_file_only,
-            civitai_token=civitai_token,
-            include_params=include_params
+        return (
+            cls.for_HF(search_word=search_word, skip_error=True, **kwargs) 
+            or cls.for_HF(search_word=search_word, skip_error=True, **kwargs)
         )
-                
-        if not include_params:
-            return result
-        else:
-            return SearchPipelineOutput(
-                model_path=cls.model_info["model_path"],
-                loading_method=cls.model_info["loading_method"],
-                repo_status=RepoStatus(**cls.model_info["repo_status"]),
-                model_status=ModelStatus(**cls.model_info["model_status"])
-            )
+        
 
-    def File_search(
-        self,
-        search_word,
-        auto=True
-    ):
-        """
-        Search for files based on the provided search word.
-
-        Args:
-            search_word (str): The search word for the file.
-            auto (bool, optional): Whether to enable auto mode. Defaults to True.
-
-        Yields:
-            str: The path of the found file.
-        """
-        closest_match = None
-        closest_distance = float('inf')
-        for root, dirs, files in os.walk("/"):
-            for file in files:
-                if any(file.endswith(ext) for ext in EXTENSION):
-                    path = os.path.join(root, file)
-                    if not any(path.endswith(ext) for ext in CONFIG_FILE_LIST):
-                        yield path
-                        if auto:
-                            distance = self.calculate_distance(search_word, file)
-                            if distance < closest_distance:
-                                closest_distance = distance
-                                closest_match = path
-        if auto:
-            return closest_match
-        else:
-            return self.user_select_file(search_word)
     
-
-    def user_select_file(self, search_word, result):
-        """
-        Allow user to select a file from the search results.
-
-        Args:
-            search_word (str): The search word for the file.
-
-        Returns:
-            str: The path of the selected file.
-
-        Raises:
-            FileNotFoundError: If no files are found.
-        """
-        search_results = list(self.File_search(search_word, auto=False))
-        if not search_results:
-            raise FileNotFoundError("\033[33mModel File not found\033[0m")
         
-        print("\n\n\033[34mThe following model files were found\033[0m")
-        for i, path in enumerate(search_results, 1):
-            print(f"\033[34m{i}. {path}\033[0m")
-        
-        while True:
-            try:
-                choice = int(input(f"Select the file to use [1-{len(search_results)}]: "))
-                if 1 <= choice <= len(search_results):
-                    return search_results[choice - 1]
-                else:
-                    print(f"\033[33mPlease enter a number between 1 and {len(search_results)}\033[0m")
-            except ValueError:
-                print("\033[33mOnly natural numbers are valid.\033[0m")
-    
-
-    def calculate_distance(self, search_word, file_name):
-        """
-        Calculate the distance between the search word and the file name.
-
-        Args:
-            search_word (str): The search word.
-            file_name (str): The file name.
-
-        Returns:
-            int: The distance between the search word and the file name.
-        """
-        return sum(1 for a, b in zip(search_word, file_name) if a != b)  
-
-
-    def model_set(
-        self,
-        search_word,
-        auto=True,
-        download=False,
-        model_format="single_file",
-        model_type="Checkpoint",
-        branch="main",
-        priority_hub="hugface",
-        local_file_only=False,
-        civitai_token=None,
-        include_params=False
-    ):
-        """
-        Set the model based on the provided parameters.
-
-        Args:
-            search_word (str): The model selection criteria.
-            auto (bool, optional): Whether to enable auto mode. Defaults to True.
-            download (bool, optional): Whether to download the model. Defaults to False.
-            model_format (str, optional): The format of the model. Defaults to "single_file".
-            model_type (str, optional): The type of the model. Defaults to "Checkpoint".
-            branch (str, optional): The branch of the model. Defaults to "main".
-            priority_hub (str, optional): The priority hub. Defaults to "hugface".
-            local_file_only (bool, optional): Whether to search locally only. Defaults to False.
-            civitai_token (str, optional): The Civitai token. Defaults to None.
-            include_params (bool, optional): Whether to include parameters in the returned data. Defaults to False.
-
-        Returns:
-            ModelData or str: The model data if include_params is True, otherwise the model path.
-
-        Raises:
-            TypeError: If the model_type or model_format is invalid.
-            ValueError: If the specified repository could not be found.
-            FileNotFoundError: If the model_index.json file is not found.
-        """
-        if not model_type in ["Checkpoint", "TextualInversion", "LORA", "Hypernetwork", "AestheticGradient", "Controlnet", "Poses"]:
-            raise TypeError(f'Wrong argument. Valid values are "Checkpoint", "TextualInversion", "LORA", "Hypernetwork", "AestheticGradient", "Controlnet", "Poses". What was passed on {model_type}')
-        
-        if not model_format in ["all","diffusers","single_file"]:
-            raise TypeError('The model_format is valid only for one of the following: "all","diffusers","single_file"')
-      
-        if search_word in CUSTOM_SEARCH_KEY:
-            model_path_to_check = CUSTOM_SEARCH_KEY[search_word]
-            _check_url = f"https://huggingface.co/{model_path_to_check}"
-            if is_valid_url(_check_url):
-                search_word = model_path_to_check
-                self.model_info["model_path"] = _check_url
-            else:
-                logger.warning(f"The following custom search keys are ignored.`{search_word} : {CUSTOM_SEARCH_KEY[search_word]}`")
-
-        if local_file_only:
-            model_path = next(self.File_search(
-                search_word=search_word,
-                auto=auto
-            ))
-            self.model_info["model_status"]["single_file"] = True
-            self.model_info["model_path"] = model_path
-            self.model_info["load_type"] = "from_single_file"
-
-        elif search_word.startswith("https://huggingface.co/"):
-            if not is_valid_url(search_word):
-                raise ValueError("Could not load URL")
-            else:
-                if download:
-                    model_path = self.run_hf_download(search_word)
-                else:
-                    model_path = search_word
-
-                self.model_info["model_status"]["single_file"] = True
-                self.model_info["model_path"] = model_path
-                repo, file_name = self.repo_name_or_path(search_word)
-                if file_name:
-                    self.model_info["model_status"]["filename"] = file_name
-                    self.model_info["model_status"]["single_file"] = True
-                    self.model_info["load_type"] = "from_single_file"
-                else:
-                    self.model_info["model_status"]["single_file"] = False
-                    self.model_info["load_type"] = "from_pretrained"
-
-
-        elif search_word.startswith("https://civitai.com/"):
-            model_path = self.search_for_civitai(
-                search_word=search_word,
-                auto=auto,
-                model_type=model_type,
-                download=download,
-                civitai_token=civitai_token,
-                skip_error=False
-            )
-
-        elif os.path.isfile(search_word):
-            model_path = search_word
-            self.model_info["model_path"] = search_word
-            self.model_info["model_status"]["single_file"] = True
-            self.model_info["load_type"] = "from_single_file"
-            self.model_info["model_status"]["local"] = True
-
-        elif os.path.isdir(search_word):
-            if os.path.exists(os.path.join(search_word, self.Config_file)):
-                model_path = search_word
-                self.model_info["model_path"] = search_word
-                self.model_info["model_status"]["single_file"] = False
-                self.model_info["load_type"] = "from_pretrained"
-                self.model_info["model_status"]["local"] = True
-            else:
-                raise FileNotFoundError(f"model_index.json not found in {search_word}")
-
-        elif search_word.count("/") == 1:
-            creator_name, repo_name = search_word.split("/")
-
-            if auto and self.diffusers_model_check(search_word):
-                if download:
-                    model_path = self.run_hf_download(search_word)
-                    self.model_info["model_status"]["single_file"] = False
-                else:
-                    model_path = search_word
-                    self.model_info["model_status"]["single_file"] = False
-                self.model_info["load_type"] = "from_pretrained"
-
-            elif auto and (not self.hf_model_check(search_word)):
-                raise ValueError(f'The specified repository could not be found, please try turning off "auto" (search_word:{search_word})')
-            else:
-                file_path=self.file_name_set(search_word,auto,model_type)
-                if file_path is None:
-                    raise ValueError("Model not found")
-                elif file_path == "DiffusersFormat":
-                    if download:
-                        model_path = self.run_hf_download(search_word)
-                    else:
-                        model_path = search_word
-
-                    self.model_info["model_status"]["single_file"] = False
-                    self.model_info["load_type"] = "from_pretrained"
-                    
-                else:
-                    hf_model_path = f"https://huggingface.co/{search_word}/blob/{branch}/{file_path}"
-                    
-                    if download:
-                        model_path = self.run_hf_download(hf_model_path)
-                    else:
-                        model_path = hf_model_path
-                    
-                    self.model_info["model_status"]["filename"] = file_path
-                    self.model_info["model_status"]["single_file"] = True
-                    self.model_info["load_type"] = "from_single_file"
-                
-            self.model_info["repo_status"]["repo_name"] = repo_name
-                
-        else:
-            if priority_hub == "huggingface":
-                model_path = self.search_for_hf(
-                    search_word=search_word,
-                    auto=auto,
-                    model_format=model_format,
-                    model_type=model_type,
-                    download=download,
-                    include_civitai=True
-                    )
-                if model_path is None:
-                    model_path = self.search_for_civitai(
-                        search_word=search_word,
-                        auto=auto,
-                        model_type=model_type,
-                        download=download,
-                        civitai_token=civitai_token,
-                        include_hugface=False
-                    )
-                    if not model_path:
-                        raise ValueError("No models matching the criteria were found.")
-                
-            else:
-                model_path = self.search_for_civitai(
-                    search_word=search_word,
-                    auto=auto,
-                    model_type=model_type,
-                    download=download,
-                    civitai_token=civitai_token,
-                    include_hugface=True
-                )
-                if not model_path:
-                    model_path = self.search_for_hf(
-                        search_word=search_word,
-                        auto=auto,
-                        model_format=model_format,
-                        model_type=model_type,
-                        download=download,
-                        include_civitai=False
-                        )
-                    if model_path is None:
-                        raise ValueError("No models matching the criteria were found.")
-                
-        self.model_info["model_path"] = model_path
-        if include_params:
-            return self.model_info
-        else:
-            return model_path
-
-
