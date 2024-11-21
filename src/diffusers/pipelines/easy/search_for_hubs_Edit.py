@@ -391,7 +391,7 @@ class HFSearchPipeline:
                 model_status=ModelStatus(
                     search_word=search_word,
                     download_url=download_url,
-                    filename=file_name,
+                    file_name=file_name,
                     local=download,
                 )
             )
@@ -402,9 +402,6 @@ class HFSearchPipeline:
 
 
     
-
-
-
 class CivitaiSearchPipeline:
     """
     The Civitai class is used to search and download models from Civitai.
@@ -449,13 +446,14 @@ class CivitaiSearchPipeline:
             if bool(re.search(r"(?i)[-_](safe|sfw)", model_data["filename"])):
                 return model_data
         return models[0]
+    
 
     @classmethod
     def for_civitai(
         cls,
         search_word,
         **kwargs
-    ) -> SearchPipelineOutput:
+    ) -> Literal[None, SearchPipelineOutput]:
         """
         Downloads a model from Civitai.
 
@@ -474,7 +472,7 @@ class CivitaiSearchPipeline:
         force_download = kwargs.pop("force_download", False)
         civitai_token = kwargs.pop("civitai_token", None)
         include_params = kwargs.pop("include_params", False)
-        skip_error = kwargs.pop("skip_error", True)
+        skip_error = kwargs.pop("skip_error", False)
 
         model_info = {
             "model_path" : "",
@@ -493,7 +491,12 @@ class CivitaiSearchPipeline:
                 },
             }
         
-        params = {"query": search_word, "types": model_type, "sort": "Most Downloaded"}
+        params = {
+            "query": search_word,
+            "types": model_type,
+            "sort": "Highest Rated",
+            "limit":20
+            }
 
         headers = {}
         if civitai_token:
@@ -517,19 +520,28 @@ class CivitaiSearchPipeline:
         # Put the repo sorting process on this line.
         sorted_repos = sorted(data["items"], key=lambda x: x["stats"]["downloadCount"], reverse=True)
 
+        model_path = ""
+        repo_name = ""
+        repo_id = ""
+        version_id = ""
+        models_list = []
+        selected_repo = {}
+        selected_model = {}
+        selected_version = {}
+
         for selected_repo in sorted_repos:
             repo_name = selected_repo["name"]
+            repo_id = selected_repo["id"]
             
             sorted_versions = sorted(selected_repo["modelVersions"], key=lambda x: x["stats"]["downloadCount"], reverse=True)
             for selected_version in sorted_versions:
-                repo_id = selected_version["modelId"]
                 version_id = selected_version["id"]
                 models_list = []
                 for model_data in selected_version["files"]:
                     if (
                         model_data["pickleScanResult"] == "Success"
                         and model_data["virusScanResult"] == "Success"
-                        and any(model_data.endswith(ext) for ext in EXTENSION)
+                        and any(model_data["name"].endswith(ext) for ext in EXTENSION)
                     ):
                         file_status = {
                             "filename": model_data["name"],
@@ -544,6 +556,12 @@ class CivitaiSearchPipeline:
             else:
                 continue
             break
+            
+        if not selected_model:
+            if skip_error:
+                return None
+            else:
+                raise ValueError("No models found")
 
         file_name = selected_model["filename"]
         download_url = selected_model["download_url"]
@@ -571,7 +589,6 @@ class CivitaiSearchPipeline:
                 ) as fetched_model_info:
                     for chunk in response.iter_content(chunk_size=8192):
                         fetched_model_info.write(chunk)
-
         else:
             model_path = download_url
 
@@ -592,380 +609,11 @@ class CivitaiSearchPipeline:
                 ),
                 model_status=ModelStatus(
                     search_word=search_word,
-                    download_url=model_info["model_status"]["download_url"],
-                    filename=model_info["model_status"]["filename"],
-                    local=model_info["model_status"]["local"]
+                    download_url=download_url,
+                    file_name=file_name,
+                    local=output_info["type"]["local"]
                 )
             )
-
-
-    def civitai_security_check(
-        self,
-        value
-    ) -> int:
-        """
-        Performs a security check.
-
-        Parameters:
-        - value: Value to check.
-
-        Returns:
-        - int: Security risk level.
-        """
-        try:
-            pickleScan = value["pickleScanResult"]
-            virusScan = value["virusScanResult"]
-        except KeyError:
-            return 1
-        check_list = [pickleScan, virusScan]
-        if all(status == "Success" for status in check_list):
-            return 0
-        elif "Danger" in check_list:
-            return 2
-        else:
-            return 1
-
-
-    def requests_civitai(
-        self,
-        query,
-        model_type,
-        civitai_token=None,
-    ):
-        """
-        Retrieves models from Civitai.
-
-        Parameters:
-        - query: Search query string.
-        - model_type: Type of model to search for.
-
-        Returns:
-        - list: List of model information.
-        """
-        state = []
-        model_ver_list = []
-        version_dict = {}
-
-        params = {"query": query, "types": model_type, "sort": "Most Downloaded"}
-
-        headers = {}
-        if civitai_token:
-            headers["Authorization"] = f"Bearer {civitai_token}"
-
-        try:
-            response = requests.get(
-                "https://civitai.com/api/v1/models", params=params, headers=headers
-            )
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as err:
-            raise requests.HTTPError(f"Could not get elements from the URL: {err}")
-        else:
-            try:
-                data = response.json()
-            except AttributeError:
-                raise ValueError("Invalid JSON response")
-
-        for items in data["items"]:
-            sorted_repos = sorted(items, key=lambda x: x["stats"]["downloadCount"], reverse=True)
-            for model_versions in sorted_repos["modelVersions"]:
-                files_list = []
-                sorted_model_versions = sorted(model_versions, key=lambda x: x["stats"]["downloadCount"], reverse=True)
-                for model_value in sorted_model_versions["files"]:
-
-                    if all(
-                        model_value["pickleScanResult"] == "Success"
-                        and model_value["virusScanResult"] == "Success"
-                    ):
-                        file_status = {
-                            "filename": model_value["name"],
-                            "download_url": model_value["downloadUrl"],
-                        }
-                        files_list.append(file_status)
-                
-                if files_list:
-                    model_path = find_safest_model(files_list)
-                    
-                    sorted_files_list = natural_sort(files_list)
-                    version_dict = {
-                        "id": model_ver["id"],
-                        "name": model_ver["name"],
-                        "downloadCount": model_ver["stats"]["downloadCount"],
-                        "files": sorted_files_list,
-                    }
-                    model_ver_list.append(version_dict)
-
-            if all(
-                check_txt in item.keys()
-                for check_txt in ["name", "stats", "creator"]
-            ):
-                state_dict = {
-                    "repo_name": item["name"],
-                    "repo_id": item["id"],
-                    "favoriteCount": item["stats"]["favoriteCount"],
-                    "downloadCount": item["stats"]["downloadCount"],
-                    "CreatorName": item["creator"]["username"],
-                    "version_list": model_ver_list,
-                }
-
-                if model_ver_list:
-                    yield state_dict
-
-
-    def repo_select_civitai(
-        self,
-        state: list,
-        auto: bool,
-        recursive: bool = True,
-        include_hugface: bool = True
-    ):
-        """
-        Selects a repository from Civitai.
-
-        Parameters:
-        - state (list): List of repository information.
-        - auto (bool): Auto-select flag.
-        - recursive (bool): Recursive flag.
-
-        Returns:
-        - dict: Selected repository information.
-        """
-        if not state:
-            logger.warning("No models were found in civitai.")
-            return {}
-
-        elif auto:
-            repo_dict = max(state, key=lambda x: x["downloadCount"])
-            return repo_dict
-        else:
-            sorted_list = sorted(state, key=lambda x: x["downloadCount"], reverse=True)
-            if recursive and self.max_number_of_choices < len(sorted_list):
-                Limit_choice = True
-            else:
-                Limit_choice = False
-
-            if recursive:
-                print("\n\n\033[34mThe following repo paths were found\033[0m")
-            else:
-                print("\n\n\n")
-
-            max_number = (
-                min(self.max_number_of_choices, len(sorted_list))
-                if recursive
-                else len(sorted_list)
-            )
-            if include_hugface:
-                print(f"\033[34m0. Search for huggingface\033[0m")
-            for number, states_dict in enumerate(sorted_list[:max_number]):
-                print(
-                    f"\033[34m{number + 1}. Repo_id: {states_dict['CreatorName']} / {states_dict['repo_name']}, download: {states_dict['downloadCount']}\033[0m"
-                )
-
-            if Limit_choice:
-                max_number += 1
-                print(f"\033[34m{max_number}. Other than above\033[0m")
-
-            while True:
-                try:
-                    choice = int(input(f"choice repo [1~{max_number}]: "))
-                except ValueError:
-                    print("\033[33mOnly natural numbers are valid。\033[0m")
-                    continue
-
-                if Limit_choice and choice == max_number:
-                    return self.repo_select_civitai(
-                        state=state, auto=auto, recursive=False
-                    )
-                elif choice == 0 and include_hugface:
-                    return {}
-                elif 1 <= choice <= max_number:
-                    repo_dict = sorted_list[choice - 1]
-                    return repo_dict
-                else:
-                    print(f"\033[33mPlease enter the numbers 1~{max_number}\033[0m")
-
-
-    def download_model(
-        self,
-        url,
-        save_path,
-        civitai_token=None
-    ):
-        """
-        Downloads a model.
-
-        Parameters:
-        - url (str): Download URL.
-        - save_path (str): Save path.
-        - civitai_token (str): Civitai token.
-        """
-
-        headers = {}
-        if civitai_token:
-            headers["Authorization"] = f"Bearer {civitai_token}"
-            
-        try:
-            response = requests.get(url, stream=True, headers=headers)
-            response.raise_for_status()
-        except requests.HTTPError:
-            raise requests.HTTPError(f"Invalid URL: {url}, {response.status_code}")
-
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
-        with tqdm.wrapattr(
-            open(save_path, "wb"),
-            "write",
-            miniters=1,
-            desc=os.path.basename(save_path),
-            total=int(response.headers.get("content-length", 0)),
-        ) as fout:
-            for chunk in response.iter_content(chunk_size=self.chunk_size):
-                fout.write(chunk)
-        logger.info(f"Downloaded file saved to {save_path}")
-
-
-    def version_select_civitai(
-        self,
-        state,
-        auto,
-        recursive: bool = True
-    ):
-        """
-        Selects a model version from Civitai.
-
-        Parameters:
-        - state: Model information state.
-        - auto: Auto-select flag.
-        - recursive (bool): Recursive flag.
-
-        Returns:
-        - dict: Selected model information.
-        """
-        if not state:
-            raise ValueError("state is empty")
-
-        ver_list = sorted(state["version_list"], key=lambda x: x["downloadCount"], reverse=True)[0]
-
-        if recursive and self.max_number_of_choices < len(ver_list):
-            Limit_choice = True
-        else:
-            Limit_choice = False
-
-        if auto:
-            result = max(ver_list, key=lambda x: x["downloadCount"])
-            #version_files_list = natural_sort(result["files"])
-            #self.model_info["repo_status"]["revision"] = result["id"]
-            return result
-        else:
-            if recursive:
-                print("\n\n\033[34mThe following model paths were found\033[0m")
-            else:
-                print("\n\n\n")
-
-            if len(ver_list) == 1:
-                return ver_list
-
-            max_number = (
-                min(self.max_number_of_choices, len(ver_list))
-                if recursive
-                else len(ver_list)
-            )
-
-            for number_, state_dict_ in enumerate(ver_list[:max_number]):
-                print(
-                    f"\033[34m{number_ + 1}. model_version: {state_dict_['name']}, download: {state_dict_['downloadCount']}\033[0m"
-                )
-
-            if Limit_choice:
-                max_number += 1
-                print(f"\033[34m{max_number}. Other than above\033[0m")
-
-            while True:
-                try:
-                    choice = int(input("Select the model path to use: "))
-                except ValueError:
-                    print("\033[33mOnly natural numbers are valid。\033[0m")
-                    continue
-                if Limit_choice and choice == max_number:
-                    return self.version_select_civitai(
-                        state=state, auto=auto, recursive=False
-                    )
-                elif 1 <= choice <= max_number:
-                    return_dict = ver_list[choice - 1]
-                    return return_dict
-                else:
-                    print(f"\033[33mPlease enter the numbers 1~{max_number}\033[0m")
-
-
-    def file_select_civitai(
-        self,
-        state_list,
-        auto,
-        recursive: bool = True
-    ):
-        """
-        Selects a file to download.
-
-        Parameters:
-        - state_list: List of file information.
-        - auto: Auto-select flag.
-
-        Returns:
-        - dict: Selected file information.
-        """
-        if recursive and self.max_number_of_choices < len(state_list):
-            Limit_choice = True
-        else:
-            Limit_choice = False
-
-        if len(state_list) > 1 and (not auto):
-            max_number = (
-                len(state_list)
-                if not recursive
-                else min(self.max_number_of_choices, len(state_list))
-            )
-            for number, states_dict in enumerate(state_list[:max_number]):
-                print(f"\033[34m{number + 1}. File_name: {states_dict['filename']}")
-
-            if Limit_choice:
-                max_number += 1
-                print(f"\033[34m{max_number}. Other than above\033[0m")
-
-            while True:
-                try:
-                    choice = int(input(f"Select the file to download[1~{max_number}]: "))
-                except ValueError:
-                    print("\033[33mOnly natural numbers are valid。\033[0m")
-                    continue
-                if Limit_choice and choice == max_number:
-                    return self.file_select_civitai(
-                        state_list=state_list, auto=auto, recursive=False
-                    )
-                elif 1 <= choice <= len(state_list):
-                    file_dict = state_list[choice - 1]
-                    return file_dict
-                else:
-                    print(f"\033[33mPlease enter the numbers 1~{len(state_list)}\033[0m")
-        else:
-            file_dict = state_list[0]
-            return file_dict
-
-
-    def civitai_save_path(
-        self
-    ) -> os.PathLike:
-        """
-        Sets the save path.
-
-        Returns:
-        - str: Save path.
-        """
-        repo_level_dir = str(self.model_info["repo_status"]["repo_id"])
-        file_version_dir = str(self.model_info["repo_status"]["revision"])
-        save_file_name = str(self.model_info["model_status"]["filename"])
-        save_path = os.path.join(
-            self.base_civitai_dir, repo_level_dir, file_version_dir, save_file_name
-        )
-        return save_path
 
 
 
@@ -1043,7 +691,7 @@ class ModelSearchPipeline(
         else:
             return SearchPipelineOutput(
                 model_path=cls.model_info["model_path"],
-                load_type=cls.model_info["load_type"],
+                loading_method=cls.model_info["loading_method"],
                 repo_status=RepoStatus(**cls.model_info["repo_status"]),
                 model_status=ModelStatus(**cls.model_info["model_status"])
             )
