@@ -401,7 +401,6 @@ class HFSearchPipeline:
 
 
 
-    
 class CivitaiSearchPipeline:
     """
     The Civitai class is used to search and download models from Civitai.
@@ -453,7 +452,7 @@ class CivitaiSearchPipeline:
         cls,
         search_word,
         **kwargs
-    ) -> Literal[None, SearchPipelineOutput]:
+    ) -> Union[str,SearchPipelineOutput,None]:
         """
         Downloads a model from Civitai.
 
