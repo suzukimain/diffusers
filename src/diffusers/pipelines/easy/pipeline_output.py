@@ -8,11 +8,11 @@ class RepoStatus:
     Attributes:
         repo_id (str): The name of the repository.
         repo_hash (str): The hash of the repository.
-        revision (str): The version ID of the repository.
+        version (str): The version ID of the repository.
     """
     repo_id: str = ""
     repo_hash: str = ""
-    revision: str = ""
+    version: str = ""
 
 
 @dataclass

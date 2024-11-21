@@ -386,7 +386,7 @@ class HFSearchPipeline:
                 repo_status=RepoStatus(
                     repo_id=repo_id,
                     repo_hash=hf_repo_info["sha"],
-                    revision=revision
+                    version=revision
                 ),
                 model_status=ModelStatus(
                     search_word=search_word,
@@ -521,6 +521,7 @@ class CivitaiSearchPipeline:
         sorted_repos = sorted(data["items"], key=lambda x: x["stats"]["downloadCount"], reverse=True)
 
         for selected_repo in sorted_repos:
+            repo_name = selected_repo["name"]
             
             sorted_versions = sorted(selected_repo["modelVersions"], key=lambda x: x["stats"]["downloadCount"], reverse=True)
             for selected_version in sorted_versions:
@@ -541,41 +542,68 @@ class CivitaiSearchPipeline:
                 
                 if models_list:
                     sorted_models = sorted(models_list, key=lambda x: x["filename"], reverse=True)
-                    model_path = cls.civitai_find_safest_model(sorted_models)
-                    model_info["model_status"]["download_url"] = model_path
+                    selected_model = cls.civitai_find_safest_model(sorted_models)
+                    #model_info["model_status"]["download_url"] = model_path
                     break
             else:
                 continue
             break
+
+        file_name = selected_model["filename"]
+        download_url = selected_model["download_url"]
         # Handle file download and setting model information
         if download:
-            model_save_path = cls.civitai_save_path()
-            model_info["model_path"] = model_save_path
             model_info["load_type"] = "from_single_file"
-            cls.download_model(
-                url=model_info["model_status"]["download_url"],
-                save_path=model_save_path,
-                civitai_token=civitai_token,
-            )
+            model_path = f"/root/.cache/Civitai/{repo_id}/{version_id}/{file_name}"
+            
+            headers = {}
+            if civitai_token:
+                headers["Authorization"] = f"Bearer {civitai_token}" 
+            try:
+                response = requests.get(download_url, stream=True, headers=headers)
+                response.raise_for_status()
+            except requests.HTTPError:
+                raise requests.HTTPError(f"Invalid URL: {download_url}, {response.status_code}")
+            
+            os.makedirs(os.path.dirname(model_path), exist_ok=True)
+
+            with tqdm.wrapattr(
+                open(model_path, "wb"),
+                "write",
+                miniters=1,
+                desc=file_name,
+                total=int(response.headers.get("content-length", 0)),
+            ) as fetched_model_info:
+                for chunk in response.iter_content(chunk_size=8192):
+                    fetched_model_info.write(chunk)
+
+
         else:
             model_info["model_path"] = model_info["model_status"]["download_url"]
             model_info["load_type"] = ""
 
+        
+
+        model_info["model_path"] = model_save_path
+            model_info["load_type"] = "from_single_file"
+            
+        output_info = get_keyword_types(model_path)
+
         # Return appropriate result based on include_params
         if not include_params:
-            return model_info["model_path"]
+            return model_path
         else:
             return SearchPipelineOutput(
-                model_path=model_info["model_path"],
-                loading_method=model_info["load_type"],
-                model_format=model_format,
+                model_path=model_path,
+                loading_method=output_info["loading_method"],
+                model_format=output_info["model_format"],
                 repo_status=RepoStatus(
-                    repo_id=model_info["repo_status"]["repo_id"],
-                    repo_hash=model_info["repo_status"]["repo_hash"],
-                    revision=model_info["repo_status"]["revision"]
+                    repo_id=repo_name,
+                    repo_hash=repo_id,
+                    version=version_id
                 ),
                 model_status=ModelStatus(
-                    search_word=model_info["model_status"]["search_word"],
+                    search_word=search_word,
                     download_url=model_info["model_status"]["download_url"],
                     filename=model_info["model_status"]["filename"],
                     local=model_info["model_status"]["local"]
@@ -782,15 +810,13 @@ class CivitaiSearchPipeline:
         - save_path (str): Save path.
         - civitai_token (str): Civitai token.
         """
-        if not is_valid_url(url):
-            raise requests.HTTPError("URL is invalid.")
 
         headers = {}
         if civitai_token:
             headers["Authorization"] = f"Bearer {civitai_token}"
-
-        response = requests.get(url, stream=True, headers=headers)
+            
         try:
+            response = requests.get(url, stream=True, headers=headers)
             response.raise_for_status()
         except requests.HTTPError:
             raise requests.HTTPError(f"Invalid URL: {url}, {response.status_code}")
