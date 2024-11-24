@@ -450,7 +450,7 @@ def load_pipeline_from_single_file(pretrained_model_or_path, pipeline_mapping, *
     """
 
     # Load the checkpoint from the provided link or path
-    checkpoint = load_single_file_checkpoint(pretrained_model_or_path, **kwargs)
+    checkpoint = load_single_file_checkpoint(pretrained_model_or_path)
 
     # Infer the model type from the loaded checkpoint
     model_type = infer_diffusers_model_type(checkpoint)
