@@ -112,6 +112,31 @@ CONFIG_FILE_LIST = [
     "text_encoder_2/model.ckpt"
 ]
 
+CONFIG_FILE_LIST = [
+    "pytorch_model.bin",
+    "pytorch_model.fp16.bin",
+    "diffusion_pytorch_model.bin",
+    "diffusion_pytorch_model.fp16.bin",
+    "diffusion_pytorch_model.safetensors",
+    "diffusion_pytorch_model.fp16.safetensors",
+    "diffusion_pytorch_model.ckpt",
+    "diffusion_pytorch_model.fp16.ckpt",
+    "diffusion_pytorch_model.non_ema.bin",
+    "diffusion_pytorch_model.non_ema.safetensors",
+    "safety_checker/pytorch_model.bin",
+    "safety_checker/pytorch_model.fp16.bin",
+    "safety_checker/model.safetensors",
+    "safety_checker/model.ckpt",
+    "safety_checker/model.fp16.safetensors",
+    "safety_checker/model.fp16.ckpt",
+    "text_encoder/pytorch_model.bin",
+    "text_encoder/model.safetensors",
+    "text_encoder/model.fp16.safetensors",
+    "text_encoder/model.ckpt",
+    "text_encoder/model.fp16.ckpt",
+    "text_encoder_2/model.safetensors",
+    "text_encoder_2/model.ckpt"
+]
 
 
 

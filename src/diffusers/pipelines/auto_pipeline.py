@@ -254,6 +254,7 @@ SINGLE_FILE_CHECKPOINT_INPAINT_PIPELINE_MAPPING = OrderedDict(
     ]
 )
 
+
 CONFIG_FILE_LIST = [
     "pytorch_model.bin",
     "pytorch_model.fp16.bin",
@@ -265,17 +266,9 @@ CONFIG_FILE_LIST = [
     "diffusion_pytorch_model.fp16.ckpt",
     "diffusion_pytorch_model.non_ema.bin",
     "diffusion_pytorch_model.non_ema.safetensors",
-    "safety_checker/model.safetensors",
-    "safety_checker/model.ckpt",
-    "safety_checker/model.fp16.safetensors",
-    "safety_checker/model.fp16.ckpt",
-    "text_encoder/model.safetensors",
-    "text_encoder/model.fp16.safetensors",
-    "text_encoder/model.ckpt",
-    "text_encoder/model.fp16.ckpt",
-    "text_encoder_2/model.safetensors",
-    "text_encoder_2/model.ckpt",
 ]
+
+DIFFUSERS_CONFIG_DIR = ["safety_checker", "unet", "vae", "text_encoder", "text_encoder_2"]
 
 INPAINT_PIPELINE_KEYS = [
     "xl_inpaint",
@@ -666,6 +659,7 @@ def search_huggingface(search_word: str, **kwargs):
                         any(file_path.endswith(ext) for ext in EXTENSION)
                         and not any(config in file_path for config in CONFIG_FILE_LIST)
                         and not any(exc in file_path for exc in exclusion)
+                        and os.path.basename(os.path.dirname(file_path)) not in DIFFUSERS_CONFIG_DIR
                     ):
                         file_list.append(file_path)
             
@@ -828,13 +822,15 @@ def search_civitai(search_word: str, **kwargs):
             models_list = []
             for model_data in selected_version["files"]:
                 # Check if the file passes security scans and has a valid extension
+                file_name = model_data["name"]
                 if (
                     model_data["pickleScanResult"] == "Success"
                     and model_data["virusScanResult"] == "Success"
-                    and any(model_data["name"].endswith(ext) for ext in EXTENSION)
+                    and any(file_name.endswith(ext) for ext in EXTENSION)
+                    and os.path.basename(os.path.dirname(file_name)) not in DIFFUSERS_CONFIG_DIR
                 ):
                     file_status = {
-                        "filename": model_data["name"],
+                        "filename": file_name,
                         "download_url": model_data["downloadUrl"],
                     }
                     models_list.append(file_status)
@@ -1308,6 +1304,7 @@ class AutoPipelineForText2Image(ConfigMixin):
         # Search for the model on Hugging Face and get the model status
         model_status = search_huggingface(pretrained_model_link_or_path, **kwargs)   
         checkpoint_path = model_status.model_path
+        logger.warning(f"checkpoint_path: {checkpoint_path}")
         
         # Check the format of the model checkpoint
         if model_status.checkpoint_format == "single_file":
@@ -1411,6 +1408,7 @@ class AutoPipelineForText2Image(ConfigMixin):
         # Search for the model on Civitai and get the model status
         model_status = search_civitai(pretrained_model_link_or_path, **kwargs)
         checkpoint_path = model_status.model_path
+        logger.warning(f"checkpoint_path: {checkpoint_path}")
 
         # Load the pipeline from a single file checkpoint
         return load_pipeline_from_single_file(
