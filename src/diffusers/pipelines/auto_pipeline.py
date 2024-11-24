@@ -617,7 +617,7 @@ def search_huggingface(search_word: str, **kwargs):
         # Get model data from HF API
         hf_models = hf_api.list_models(
             search=search_word,
-            sort="downloads",
+            sort="trending",
             direction=-1,
             limit=100,
             fetch_config=True,
@@ -1303,8 +1303,8 @@ class AutoPipelineForText2Image(ConfigMixin):
 
         # Search for the model on Hugging Face and get the model status
         model_status = search_huggingface(pretrained_model_link_or_path, **kwargs)   
+        logger.warning(f"checkpoint_path: {model_status.model_status.download_url}")
         checkpoint_path = model_status.model_path
-        logger.warning(f"checkpoint_path: {checkpoint_path}")
         
         # Check the format of the model checkpoint
         if model_status.checkpoint_format == "single_file":
@@ -1407,8 +1407,8 @@ class AutoPipelineForText2Image(ConfigMixin):
 
         # Search for the model on Civitai and get the model status
         model_status = search_civitai(pretrained_model_link_or_path, **kwargs)
+        logger.warning(f"checkpoint_path: {model_status.model_status.download_url}")
         checkpoint_path = model_status.model_path
-        logger.warning(f"checkpoint_path: {checkpoint_path}")
 
         # Load the pipeline from a single file checkpoint
         return load_pipeline_from_single_file(
