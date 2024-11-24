@@ -192,50 +192,56 @@ _AUTO_INPAINT_DECODER_PIPELINES_MAPPING = OrderedDict(
 )
 
 
-SINGLE_FILE_CHECKPOINT_TEXT2IMAGE_PIPELINE_MAPPING = {
-    "xl_base": StableDiffusionXLPipeline,
-    "xl_refiner": StableDiffusionXLPipeline,
-    "xl_inpaint": None,
-    "playground-v2-5": StableDiffusionXLPipeline,
-    "upscale": None,
-    "inpainting": None,
-    "inpainting_v2": None,
-    "controlnet": StableDiffusionControlNetPipeline,
-    "v2": StableDiffusionPipeline,
-    "v1": StableDiffusionPipeline,
-}
-SINGLE_FILE_CHECKPOINT_IMAGE2IMAGE_PIPELINE_MAPPING = {
-    "xl_base": StableDiffusionXLImg2ImgPipeline,
-    "xl_refiner": StableDiffusionXLImg2ImgPipeline,
-    "xl_inpaint": None,
-    "playground-v2-5": StableDiffusionXLImg2ImgPipeline,
-    "upscale": None,
-    "inpainting": None,
-    "inpainting_v2": None,
-    "controlnet": StableDiffusionControlNetImg2ImgPipeline,
-    "v2": StableDiffusionImg2ImgPipeline,
-    "v1": StableDiffusionImg2ImgPipeline,
+SINGLE_FILE_CHECKPOINT_TEXT2IMAGE_PIPELINE_MAPPING = OrderedDict(
+    [
+        ("xl_base", StableDiffusionXLPipeline),
+        ("xl_refiner", StableDiffusionXLPipeline),
+        ("xl_inpaint", None),
+        ("playground-v2-5", StableDiffusionXLPipeline),
+        ("upscale", None),
+        ("inpainting", None),
+        ("inpainting_v2", None),
+        ("controlnet", StableDiffusionControlNetPipeline),
+        ("v2", StableDiffusionPipeline),
+        ("v1", StableDiffusionPipeline),
+    ]
+)
 
-}
+SINGLE_FILE_CHECKPOINT_IMAGE2IMAGE_PIPELINE_MAPPING = OrderedDict(
+    [
+        ("xl_base", StableDiffusionXLImg2ImgPipeline),
+        ("xl_refiner", StableDiffusionXLImg2ImgPipeline),
+        ("xl_inpaint", None),
+        ("playground-v2-5", StableDiffusionXLImg2ImgPipeline),
+        ("upscale", None),
+        ("inpainting", None),
+        ("inpainting_v2", None),
+        ("controlnet", StableDiffusionControlNetImg2ImgPipeline),
+        ("v2", StableDiffusionImg2ImgPipeline),
+        ("v1", StableDiffusionImg2ImgPipeline),
+    ]
+)
 
-SINGLE_FILE_CHECKPOINT_INPAINT_PIPELINE_MAPPING = {
-    "xl_base": None,
-    "xl_refiner": None,
-    "xl_inpaint": StableDiffusionXLInpaintPipeline,
-    "playground-v2-5": None,
-    "upscale": None,
-    "inpainting": StableDiffusionInpaintPipeline,
-    "inpainting_v2": StableDiffusionInpaintPipeline,
-    "controlnet": StableDiffusionControlNetInpaintPipeline,
-    "v2": None,
-    "v1": None,
-}
+SINGLE_FILE_CHECKPOINT_INPAINT_PIPELINE_MAPPING = OrderedDict(
+    [
+        ("xl_base", None),
+        ("xl_refiner", None),
+        ("xl_inpaint", StableDiffusionXLInpaintPipeline),
+        ("playground-v2-5", None),
+        ("upscale", None),
+        ("inpainting", StableDiffusionInpaintPipeline),
+        ("inpainting_v2", StableDiffusionInpaintPipeline),
+        ("controlnet", StableDiffusionControlNetInpaintPipeline),
+        ("v2", None),
+        ("v1", None),
+    ]
+)
 
 INPAINT_PIPELINE_KEYS = [
     "xl_inpaint",
     "inpainting",
     "inpainting_v2",
-    ]
+]
 
 
 if is_sentencepiece_available():
@@ -254,7 +260,6 @@ SUPPORTED_TASKS_MAPPINGS = [
     _AUTO_IMAGE2IMAGE_DECODER_PIPELINES_MAPPING,
     _AUTO_INPAINT_DECODER_PIPELINES_MAPPING,
 ]
-
 
 
 def _get_connected_pipeline(pipeline_cls):
