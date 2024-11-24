@@ -15,13 +15,20 @@
 
 import os
 import re
+import requests
+from tqdm.auto import tqdm
 from collections import OrderedDict
 from dataclasses import (
     dataclass,
     asdict
 )
 
+
 from huggingface_hub.utils import validate_hf_hub_args
+from huggingface_hub import (
+    hf_api,
+    hf_hub_download,
+)
 
 from ..configuration_utils import ConfigMixin
 from ..utils import (
@@ -275,6 +282,8 @@ INPAINT_PIPELINE_KEYS = [
     "inpainting",
     "inpainting_v2",
 ]
+
+EXTENSION =  [".safetensors", ".ckpt", ".bin"]
 
 
 if is_sentencepiece_available():
@@ -707,7 +716,7 @@ def search_huggingface(search_word: str, **kwargs):
     output_info = get_keyword_types(model_path)
 
     if include_params:
-        return SearchPipelineOutput(
+        return SearchResult(
             model_path=model_path,
             loading_method=output_info["loading_method"],
             checkpoint_format=output_info["checkpoint_format"],
@@ -1311,6 +1320,183 @@ class AutoPipelineForImage2Image(ConfigMixin):
 
         return model
 
+
+def search_civitai(search_word: str, **kwargs):
+    r"""
+    Downloads a model from Civitai.
+
+    Parameters:
+        search_word (`str`):
+            The search query string.
+        model_type (`str`, *optional*, defaults to `Checkpoint`):
+            The type of model to search for.
+        base_model (`str`, *optional*):
+            The base model to filter by.
+        download (`bool`, *optional*, defaults to `False`):
+            Whether to download the model.
+        force_download (`bool`, *optional*, defaults to `False`):
+            Whether to force the download if the model already exists.
+        civitai_token (`str`, *optional*):
+            API token for Civitai authentication.
+        include_params (`bool`, *optional*, defaults to `False`):
+            Whether to include parameters in the returned data.
+        skip_error (`bool`, *optional*, defaults to `False`):
+            Whether to skip errors and return None.
+
+    Returns:
+        `Union[str, SearchPipelineOutput, None]`: The model path or `SearchPipelineOutput` or None.
+    """
+
+    # Extract additional parameters from kwargs
+    model_type = kwargs.pop("model_type", "Checkpoint")
+    download = kwargs.pop("download", False)
+    base_model = kwargs.pop("base_model", None)
+    force_download = kwargs.pop("force_download", False)
+    civitai_token = kwargs.pop("civitai_token", None)
+    include_params = kwargs.pop("include_params", False)
+    skip_error = kwargs.pop("skip_error", False)
+
+    # Initialize additional variables with default values
+    model_path = ""
+    repo_name = ""
+    repo_id = ""
+    version_id = ""
+    models_list = []
+    selected_repo = {}
+    selected_model = {}
+    selected_version = {}
+
+    # Set up parameters and headers for the CivitAI API request
+    params = {
+        "query": search_word,
+        "types": model_type,
+        "sort": "Highest Rated",
+        "limit": 20
+    }
+    if base_model is not None:
+        params["baseModel"] = base_model
+
+    headers = {}
+    if civitai_token:
+        headers["Authorization"] = f"Bearer {civitai_token}"
+
+    try:
+        # Make the request to the CivitAI API
+        response = requests.get(
+            "https://civitai.com/api/v1/models", params=params, headers=headers
+        )
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as err:
+        raise requests.HTTPError(f"Could not get elements from the URL: {err}")
+    else:
+        try:
+            data = response.json()
+        except AttributeError:
+            if skip_error:
+                return None
+            else:
+                raise ValueError("Invalid JSON response")
+    
+    # Sort repositories by download count in descending order
+    sorted_repos = sorted(data["items"], key=lambda x: x["stats"]["downloadCount"], reverse=True)
+
+    for selected_repo in sorted_repos:
+        repo_name = selected_repo["name"]
+        repo_id = selected_repo["id"]
+
+        # Sort versions within the selected repo by download count
+        sorted_versions = sorted(selected_repo["modelVersions"], key=lambda x: x["stats"]["downloadCount"], reverse=True)
+        for selected_version in sorted_versions:
+            version_id = selected_version["id"]
+            models_list = []
+            for model_data in selected_version["files"]:
+                # Check if the file passes security scans and has a valid extension
+                if (
+                    model_data["pickleScanResult"] == "Success"
+                    and model_data["virusScanResult"] == "Success"
+                    and any(model_data["name"].endswith(ext) for ext in EXTENSION)
+                ):
+                    file_status = {
+                        "filename": model_data["name"],
+                        "download_url": model_data["downloadUrl"],
+                    }
+                    models_list.append(file_status)
+
+            if models_list:
+                # Sort the models list by filename and find the safest model
+                sorted_models = sorted(models_list, key=lambda x: x["filename"], reverse=True)
+                selected_model = next(
+                    (
+                        model_data
+                        for model_data in sorted_models
+                        if bool(re.search(r"(?i)[-_](safe|sfw)", model_data["filename"]))
+                    ),
+                    sorted_models[0]
+                )
+
+                break
+        else:
+            continue
+        break
+
+    if not selected_model:
+        if skip_error:
+            return None
+        else:
+            raise ValueError("No model found. Please try changing the word you are searching for.")
+
+    file_name = selected_model["filename"]
+    download_url = selected_model["download_url"]
+
+    # Handle file download and setting model information
+    if download:
+        model_path = f"/root/.cache/Civitai/{repo_id}/{version_id}/{file_name}"
+        os.makedirs(os.path.dirname(model_path), exist_ok=True)
+        if (not os.path.exists(model_path)) or force_download:
+            headers = {}
+            if civitai_token:
+                headers["Authorization"] = f"Bearer {civitai_token}"
+
+            try:
+                response = requests.get(download_url, stream=True, headers=headers)
+                response.raise_for_status()
+            except requests.HTTPError:
+                raise requests.HTTPError(f"Invalid URL: {download_url}, {response.status_code}")
+
+            with tqdm.wrapattr(
+                open(model_path, "wb"),
+                "write",
+                miniters=1,
+                desc=file_name,
+                total=int(response.headers.get("content-length", 0)),
+            ) as fetched_model_info:
+                for chunk in response.iter_content(chunk_size=8192):
+                    fetched_model_info.write(chunk)
+    else:
+        model_path = download_url
+
+    output_info = get_keyword_types(model_path)
+
+    if not include_params:
+        return model_path
+    else:
+        return SearchResult(
+            model_path=model_path,
+            loading_method=output_info["loading_method"],
+            checkpoint_format=output_info["checkpoint_format"],
+            repo_status=RepoStatus(
+                repo_id=repo_name,
+                repo_hash=repo_id,
+                version=version_id
+            ),
+            model_status=ModelStatus(
+                search_word=search_word,
+                download_url=download_url,
+                file_name=file_name,
+                local=output_info["type"]["local"]
+            )
+        )
+    
 
 class AutoPipelineForInpainting(ConfigMixin):
     r"""
