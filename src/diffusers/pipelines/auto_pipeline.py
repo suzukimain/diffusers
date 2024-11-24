@@ -398,13 +398,13 @@ def _get_task_class(mapping, pipeline_class_name, throw_error_if_not_exist: bool
 
 
 @validate_hf_hub_args
-def load_pipeline_from_single_file(pretrained_model_link_or_path, pipeline_mapping, **kwargs):
+def load_pipeline_from_single_file(pretrained_model_or_path, pipeline_mapping, **kwargs):
     r"""
     Instantiate a [`DiffusionPipeline`] from pretrained pipeline weights saved in the `.ckpt` or `.safetensors`
     format. The pipeline is set in evaluation mode (`model.eval()`) by default.
 
     Parameters:
-        pretrained_model_link_or_path (`str` or `os.PathLike`, *optional*):
+        pretrained_model_or_path (`str` or `os.PathLike`, *optional*):
             Can be either:
                 - A link to the `.ckpt` file (for example
                   `"https://huggingface.co/<repo_id>/blob/main/<path_to_file>.ckpt"`) on the Hub.
@@ -450,7 +450,7 @@ def load_pipeline_from_single_file(pretrained_model_link_or_path, pipeline_mappi
     """
 
     # Load the checkpoint from the provided link or path
-    checkpoint = load_single_file_checkpoint(pretrained_model_link_or_path)
+    checkpoint = load_single_file_checkpoint(pretrained_model_or_path)
 
     # Infer the model type from the loaded checkpoint
     model_type = infer_diffusers_model_type(checkpoint)
@@ -469,7 +469,7 @@ def load_pipeline_from_single_file(pretrained_model_link_or_path, pipeline_mappi
 
     else:
         # Instantiate and return the pipeline with the loaded checkpoint and any additional kwargs
-        return pipeline_class.from_single_file(pretrained_model_link_or_path, checkpoint=checkpoint, **kwargs)
+        return pipeline_class.from_single_file(pretrained_model_or_path, checkpoint=checkpoint, **kwargs)
 
 
 def get_keyword_types(keyword):
@@ -736,6 +736,183 @@ def search_huggingface(search_word: str, **kwargs):
     else:
         return model_path
     
+
+def search_civitai(search_word: str, **kwargs):
+    r"""
+    Downloads a model from Civitai.
+
+    Parameters:
+        search_word (`str`):
+            The search query string.
+        model_type (`str`, *optional*, defaults to `Checkpoint`):
+            The type of model to search for.
+        base_model (`str`, *optional*):
+            The base model to filter by.
+        download (`bool`, *optional*, defaults to `False`):
+            Whether to download the model.
+        force_download (`bool`, *optional*, defaults to `False`):
+            Whether to force the download if the model already exists.
+        civitai_token (`str`, *optional*):
+            API token for Civitai authentication.
+        include_params (`bool`, *optional*, defaults to `False`):
+            Whether to include parameters in the returned data.
+        skip_error (`bool`, *optional*, defaults to `False`):
+            Whether to skip errors and return None.
+
+    Returns:
+        `Union[str, SearchPipelineOutput, None]`: The model path or `SearchPipelineOutput` or None.
+    """
+
+    # Extract additional parameters from kwargs
+    model_type = kwargs.pop("model_type", "Checkpoint")
+    download = kwargs.pop("download", False)
+    base_model = kwargs.pop("base_model", None)
+    force_download = kwargs.pop("force_download", False)
+    civitai_token = kwargs.pop("civitai_token", None)
+    include_params = kwargs.pop("include_params", False)
+    skip_error = kwargs.pop("skip_error", False)
+
+    # Initialize additional variables with default values
+    model_path = ""
+    repo_name = ""
+    repo_id = ""
+    version_id = ""
+    models_list = []
+    selected_repo = {}
+    selected_model = {}
+    selected_version = {}
+
+    # Set up parameters and headers for the CivitAI API request
+    params = {
+        "query": search_word,
+        "types": model_type,
+        "sort": "Highest Rated",
+        "limit": 20
+    }
+    if base_model is not None:
+        params["baseModel"] = base_model
+
+    headers = {}
+    if civitai_token:
+        headers["Authorization"] = f"Bearer {civitai_token}"
+
+    try:
+        # Make the request to the CivitAI API
+        response = requests.get(
+            "https://civitai.com/api/v1/models", params=params, headers=headers
+        )
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as err:
+        raise requests.HTTPError(f"Could not get elements from the URL: {err}")
+    else:
+        try:
+            data = response.json()
+        except AttributeError:
+            if skip_error:
+                return None
+            else:
+                raise ValueError("Invalid JSON response")
+    
+    # Sort repositories by download count in descending order
+    sorted_repos = sorted(data["items"], key=lambda x: x["stats"]["downloadCount"], reverse=True)
+
+    for selected_repo in sorted_repos:
+        repo_name = selected_repo["name"]
+        repo_id = selected_repo["id"]
+
+        # Sort versions within the selected repo by download count
+        sorted_versions = sorted(selected_repo["modelVersions"], key=lambda x: x["stats"]["downloadCount"], reverse=True)
+        for selected_version in sorted_versions:
+            version_id = selected_version["id"]
+            models_list = []
+            for model_data in selected_version["files"]:
+                # Check if the file passes security scans and has a valid extension
+                if (
+                    model_data["pickleScanResult"] == "Success"
+                    and model_data["virusScanResult"] == "Success"
+                    and any(model_data["name"].endswith(ext) for ext in EXTENSION)
+                ):
+                    file_status = {
+                        "filename": model_data["name"],
+                        "download_url": model_data["downloadUrl"],
+                    }
+                    models_list.append(file_status)
+
+            if models_list:
+                # Sort the models list by filename and find the safest model
+                sorted_models = sorted(models_list, key=lambda x: x["filename"], reverse=True)
+                selected_model = next(
+                    (
+                        model_data
+                        for model_data in sorted_models
+                        if bool(re.search(r"(?i)[-_](safe|sfw)", model_data["filename"]))
+                    ),
+                    sorted_models[0]
+                )
+
+                break
+        else:
+            continue
+        break
+
+    if not selected_model:
+        if skip_error:
+            return None
+        else:
+            raise ValueError("No model found. Please try changing the word you are searching for.")
+
+    file_name = selected_model["filename"]
+    download_url = selected_model["download_url"]
+
+    # Handle file download and setting model information
+    if download:
+        model_path = f"/root/.cache/Civitai/{repo_id}/{version_id}/{file_name}"
+        os.makedirs(os.path.dirname(model_path), exist_ok=True)
+        if (not os.path.exists(model_path)) or force_download:
+            headers = {}
+            if civitai_token:
+                headers["Authorization"] = f"Bearer {civitai_token}"
+
+            try:
+                response = requests.get(download_url, stream=True, headers=headers)
+                response.raise_for_status()
+            except requests.HTTPError:
+                raise requests.HTTPError(f"Invalid URL: {download_url}, {response.status_code}")
+
+            with tqdm.wrapattr(
+                open(model_path, "wb"),
+                "write",
+                miniters=1,
+                desc=file_name,
+                total=int(response.headers.get("content-length", 0)),
+            ) as fetched_model_info:
+                for chunk in response.iter_content(chunk_size=8192):
+                    fetched_model_info.write(chunk)
+    else:
+        model_path = download_url
+
+    output_info = get_keyword_types(model_path)
+
+    if not include_params:
+        return model_path
+    else:
+        return SearchResult(
+            model_path=model_path,
+            loading_method=output_info["loading_method"],
+            checkpoint_format=output_info["checkpoint_format"],
+            repo_status=RepoStatus(
+                repo_id=repo_name,
+                repo_hash=repo_id,
+                version=version_id
+            ),
+            model_status=ModelStatus(
+                search_word=search_word,
+                download_url=download_url,
+                file_name=file_name,
+                local=output_info["type"]["local"]
+            )
+        )
+
 
 class AutoPipelineForText2Image(ConfigMixin):
     r"""
@@ -1021,6 +1198,113 @@ class AutoPipelineForText2Image(ConfigMixin):
         model.register_to_config(**unused_original_config)
 
         return model
+    
+    @classmethod
+    def from_huggingface(cls, pretrained_model_link_or_path, **kwargs):
+        r"""
+        Parameters:
+            pretrained_model_or_path (`str` or `os.PathLike`, *optional*):
+                Can be either:
+
+                    - A string, the *repo id* (for example `CompVis/ldm-text2im-large-256`) of a pretrained pipeline
+                      hosted on the Hub.
+                    - A path to a *directory* (for example `./my_pipeline_directory/`) containing pipeline weights
+                      saved using
+                    [`~DiffusionPipeline.save_pretrained`].
+            torch_dtype (`str` or `torch.dtype`, *optional*):
+                Override the default `torch.dtype` and load the model with another dtype. If "auto" is passed, the
+                dtype is automatically derived from the model's weights.
+            force_download (`bool`, *optional*, defaults to `False`):
+                Whether or not to force the (re-)download of the model weights and configuration files, overriding the
+                cached versions if they exist.
+            cache_dir (`Union[str, os.PathLike]`, *optional*):
+                Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
+                is not used.
+
+            proxies (`Dict[str, str]`, *optional*):
+                A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
+                'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
+            output_loading_info(`bool`, *optional*, defaults to `False`):
+                Whether or not to also return a dictionary containing missing keys, unexpected keys and error messages.
+            local_files_only (`bool`, *optional*, defaults to `False`):
+                Whether to only load local model weights and configuration files or not. If set to `True`, the model
+                won't be downloaded from the Hub.
+            token (`str` or *bool*, *optional*):
+                The token to use as HTTP bearer authorization for remote files. If `True`, the token generated from
+                `diffusers-cli login` (stored in `~/.huggingface`) is used.
+            revision (`str`, *optional*, defaults to `"main"`):
+                The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
+                allowed by Git.
+            custom_revision (`str`, *optional*, defaults to `"main"`):
+                The specific model version to use. It can be a branch name, a tag name, or a commit id similar to
+                `revision` when loading a custom pipeline from the Hub. It can be a 🤗 Diffusers version when loading a
+                custom pipeline from GitHub, otherwise it defaults to `"main"` when loading from the Hub.
+            mirror (`str`, *optional*):
+                Mirror source to resolve accessibility issues if you’re downloading a model in China. We do not
+                guarantee the timeliness or safety of the source, and you should refer to the mirror site for more
+                information.
+            device_map (`str` or `Dict[str, Union[int, str, torch.device]]`, *optional*):
+                A map that specifies where each submodule should go. It doesn’t need to be defined for each
+                parameter/buffer name; once a given module name is inside, every submodule of it will be sent to the
+                same device.
+
+                Set `device_map="auto"` to have 🤗 Accelerate automatically compute the most optimized `device_map`. For
+                more information about each option see [designing a device
+                map](https://hf.co/docs/accelerate/main/en/usage_guides/big_modeling#designing-a-device-map).
+            max_memory (`Dict`, *optional*):
+                A dictionary device identifier for the maximum memory. Will default to the maximum memory available for
+                each GPU and the available CPU RAM if unset.
+            offload_folder (`str` or `os.PathLike`, *optional*):
+                The path to offload weights if device_map contains the value `"disk"`.
+            offload_state_dict (`bool`, *optional*):
+                If `True`, temporarily offloads the CPU state dict to the hard drive to avoid running out of CPU RAM if
+                the weight of the CPU state dict + the biggest shard of the checkpoint does not fit. Defaults to `True`
+                when there is some disk offload.
+            low_cpu_mem_usage (`bool`, *optional*, defaults to `True` if torch version >= 1.9.0 else `False`):
+                Speed up model loading only loading the pretrained weights and not initializing the weights. This also
+                tries to not use more than 1x model size in CPU memory (including peak memory) while loading the model.
+                Only supported for PyTorch >= 1.9.0. If you are using an older version of PyTorch, setting this
+                argument to `True` will raise an error.
+            use_safetensors (`bool`, *optional*, defaults to `None`):
+                If set to `None`, the safetensors weights are downloaded if they're available **and** if the
+                safetensors library is installed. If set to `True`, the model is forcibly loaded from safetensors
+                weights. If set to `False`, safetensors weights are not loaded.
+            kwargs (remaining dictionary of keyword arguments, *optional*):
+                Can be used to overwrite load and saveable variables (the pipeline components of the specific pipeline
+                class). The overwritten components are passed directly to the pipelines `__init__` method. See example
+                below for more information.
+            variant (`str`, *optional*):
+                Load weights from a specified variant filename such as `"fp16"` or `"ema"`. This is ignored when
+                loading `from_flax`.
+
+        <Tip>
+
+        To use private or [gated](https://huggingface.co/docs/hub/models-gated#gated-models) models, log-in with
+        `huggingface-cli login`.
+
+        </Tip>
+
+        Examples:
+
+        ```py
+        >>> from diffusers import AutoPipelineForText2Image
+
+        >>> pipeline = AutoPipelineForText2Image.from_huggingface("stable-diffusion-v1-5")
+        >>> image = pipeline(prompt).images[0]
+        ```
+        """
+        kwargs["download"] = True
+        kwargs["include_params"] = True
+        model_status = search_huggingface(pretrained_model_link_or_path, **kwargs)
+        checkpoint_path = model_status.model_path
+        if model_status.checkpoint_format == "single_file":
+            return load_pipeline_from_single_file(
+                pretrained_model_or_path=checkpoint_path,
+                pipeline_mapping=SINGLE_FILE_CHECKPOINT_TEXT2IMAGE_PIPELINE_MAPPING,
+                **kwargs
+                )
+        else:
+            return cls.from_pretrained(checkpoint_path, **kwargs)
 
 
 class AutoPipelineForImage2Image(ConfigMixin):
@@ -1321,181 +1605,7 @@ class AutoPipelineForImage2Image(ConfigMixin):
         return model
 
 
-def search_civitai(search_word: str, **kwargs):
-    r"""
-    Downloads a model from Civitai.
 
-    Parameters:
-        search_word (`str`):
-            The search query string.
-        model_type (`str`, *optional*, defaults to `Checkpoint`):
-            The type of model to search for.
-        base_model (`str`, *optional*):
-            The base model to filter by.
-        download (`bool`, *optional*, defaults to `False`):
-            Whether to download the model.
-        force_download (`bool`, *optional*, defaults to `False`):
-            Whether to force the download if the model already exists.
-        civitai_token (`str`, *optional*):
-            API token for Civitai authentication.
-        include_params (`bool`, *optional*, defaults to `False`):
-            Whether to include parameters in the returned data.
-        skip_error (`bool`, *optional*, defaults to `False`):
-            Whether to skip errors and return None.
-
-    Returns:
-        `Union[str, SearchPipelineOutput, None]`: The model path or `SearchPipelineOutput` or None.
-    """
-
-    # Extract additional parameters from kwargs
-    model_type = kwargs.pop("model_type", "Checkpoint")
-    download = kwargs.pop("download", False)
-    base_model = kwargs.pop("base_model", None)
-    force_download = kwargs.pop("force_download", False)
-    civitai_token = kwargs.pop("civitai_token", None)
-    include_params = kwargs.pop("include_params", False)
-    skip_error = kwargs.pop("skip_error", False)
-
-    # Initialize additional variables with default values
-    model_path = ""
-    repo_name = ""
-    repo_id = ""
-    version_id = ""
-    models_list = []
-    selected_repo = {}
-    selected_model = {}
-    selected_version = {}
-
-    # Set up parameters and headers for the CivitAI API request
-    params = {
-        "query": search_word,
-        "types": model_type,
-        "sort": "Highest Rated",
-        "limit": 20
-    }
-    if base_model is not None:
-        params["baseModel"] = base_model
-
-    headers = {}
-    if civitai_token:
-        headers["Authorization"] = f"Bearer {civitai_token}"
-
-    try:
-        # Make the request to the CivitAI API
-        response = requests.get(
-            "https://civitai.com/api/v1/models", params=params, headers=headers
-        )
-        response.raise_for_status()
-    except requests.exceptions.HTTPError as err:
-        raise requests.HTTPError(f"Could not get elements from the URL: {err}")
-    else:
-        try:
-            data = response.json()
-        except AttributeError:
-            if skip_error:
-                return None
-            else:
-                raise ValueError("Invalid JSON response")
-    
-    # Sort repositories by download count in descending order
-    sorted_repos = sorted(data["items"], key=lambda x: x["stats"]["downloadCount"], reverse=True)
-
-    for selected_repo in sorted_repos:
-        repo_name = selected_repo["name"]
-        repo_id = selected_repo["id"]
-
-        # Sort versions within the selected repo by download count
-        sorted_versions = sorted(selected_repo["modelVersions"], key=lambda x: x["stats"]["downloadCount"], reverse=True)
-        for selected_version in sorted_versions:
-            version_id = selected_version["id"]
-            models_list = []
-            for model_data in selected_version["files"]:
-                # Check if the file passes security scans and has a valid extension
-                if (
-                    model_data["pickleScanResult"] == "Success"
-                    and model_data["virusScanResult"] == "Success"
-                    and any(model_data["name"].endswith(ext) for ext in EXTENSION)
-                ):
-                    file_status = {
-                        "filename": model_data["name"],
-                        "download_url": model_data["downloadUrl"],
-                    }
-                    models_list.append(file_status)
-
-            if models_list:
-                # Sort the models list by filename and find the safest model
-                sorted_models = sorted(models_list, key=lambda x: x["filename"], reverse=True)
-                selected_model = next(
-                    (
-                        model_data
-                        for model_data in sorted_models
-                        if bool(re.search(r"(?i)[-_](safe|sfw)", model_data["filename"]))
-                    ),
-                    sorted_models[0]
-                )
-
-                break
-        else:
-            continue
-        break
-
-    if not selected_model:
-        if skip_error:
-            return None
-        else:
-            raise ValueError("No model found. Please try changing the word you are searching for.")
-
-    file_name = selected_model["filename"]
-    download_url = selected_model["download_url"]
-
-    # Handle file download and setting model information
-    if download:
-        model_path = f"/root/.cache/Civitai/{repo_id}/{version_id}/{file_name}"
-        os.makedirs(os.path.dirname(model_path), exist_ok=True)
-        if (not os.path.exists(model_path)) or force_download:
-            headers = {}
-            if civitai_token:
-                headers["Authorization"] = f"Bearer {civitai_token}"
-
-            try:
-                response = requests.get(download_url, stream=True, headers=headers)
-                response.raise_for_status()
-            except requests.HTTPError:
-                raise requests.HTTPError(f"Invalid URL: {download_url}, {response.status_code}")
-
-            with tqdm.wrapattr(
-                open(model_path, "wb"),
-                "write",
-                miniters=1,
-                desc=file_name,
-                total=int(response.headers.get("content-length", 0)),
-            ) as fetched_model_info:
-                for chunk in response.iter_content(chunk_size=8192):
-                    fetched_model_info.write(chunk)
-    else:
-        model_path = download_url
-
-    output_info = get_keyword_types(model_path)
-
-    if not include_params:
-        return model_path
-    else:
-        return SearchResult(
-            model_path=model_path,
-            loading_method=output_info["loading_method"],
-            checkpoint_format=output_info["checkpoint_format"],
-            repo_status=RepoStatus(
-                repo_id=repo_name,
-                repo_hash=repo_id,
-                version=version_id
-            ),
-            model_status=ModelStatus(
-                search_word=search_word,
-                download_url=download_url,
-                file_name=file_name,
-                local=output_info["type"]["local"]
-            )
-        )
     
 
 class AutoPipelineForInpainting(ConfigMixin):
