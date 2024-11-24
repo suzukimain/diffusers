@@ -450,7 +450,7 @@ def load_pipeline_from_single_file(pretrained_model_or_path, pipeline_mapping, *
     """
 
     # Load the checkpoint from the provided link or path
-    checkpoint = load_single_file_checkpoint(pretrained_model_or_path)
+    checkpoint = load_single_file_checkpoint(pretrained_model_or_path, **kwargs)
 
     # Infer the model type from the loaded checkpoint
     model_type = infer_diffusers_model_type(checkpoint)
@@ -752,7 +752,7 @@ def search_civitai(search_word: str, **kwargs):
             Whether to download the model.
         force_download (`bool`, *optional*, defaults to `False`):
             Whether to force the download if the model already exists.
-        civitai_token (`str`, *optional*):
+        token (`str`, *optional*):
             API token for Civitai authentication.
         include_params (`bool`, *optional*, defaults to `False`):
             Whether to include parameters in the returned data.
@@ -768,7 +768,7 @@ def search_civitai(search_word: str, **kwargs):
     download = kwargs.pop("download", False)
     base_model = kwargs.pop("base_model", None)
     force_download = kwargs.pop("force_download", False)
-    civitai_token = kwargs.pop("civitai_token", None)
+    token = kwargs.pop("token", None)
     include_params = kwargs.pop("include_params", False)
     skip_error = kwargs.pop("skip_error", False)
 
@@ -793,8 +793,8 @@ def search_civitai(search_word: str, **kwargs):
         params["baseModel"] = base_model
 
     headers = {}
-    if civitai_token:
-        headers["Authorization"] = f"Bearer {civitai_token}"
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
 
     try:
         # Make the request to the CivitAI API
@@ -870,8 +870,8 @@ def search_civitai(search_word: str, **kwargs):
         os.makedirs(os.path.dirname(model_path), exist_ok=True)
         if (not os.path.exists(model_path)) or force_download:
             headers = {}
-            if civitai_token:
-                headers["Authorization"] = f"Bearer {civitai_token}"
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
 
             try:
                 response = requests.get(download_url, stream=True, headers=headers)
@@ -1302,7 +1302,7 @@ class AutoPipelineForText2Image(ConfigMixin):
         ```
         """
         # Update kwargs to ensure the model is downloaded and parameters are included
-        kwargs.update({"download": True, "include_params": True})
+        kwargs.update({"download": True, "include_params": True, "skip_error": False})
 
         # Search for the model on Hugging Face and get the model status
         model_status = search_huggingface(pretrained_model_link_or_path, **kwargs)   
@@ -1315,13 +1315,108 @@ class AutoPipelineForText2Image(ConfigMixin):
                 pretrained_model_or_path=checkpoint_path,
                 pipeline_mapping=SINGLE_FILE_CHECKPOINT_TEXT2IMAGE_PIPELINE_MAPPING,
                 **kwargs
-                )
+            )
         else:
             return cls.from_pretrained(checkpoint_path, **kwargs)
     
     @classmethod
-    def from_civitai(cls):
-        search_civitai
+    def from_civitai(cls, pretrained_model_link_or_path, **kwargs):
+        r"""
+        Parameters:
+            pretrained_model_or_path (`str` or `os.PathLike`, *optional*):
+                Can be either:
+
+                    - A keyword to search for Hugging Face (for example `Stable Diffusion`)
+                    - Link to `.ckpt` or `.safetensors` file (for example
+                      `"https://huggingface.co/<repo_id>/blob/main/<path_to_file>.safetensors"`) on the Hub.
+                    - A string, the *repo id* (for example `CompVis/ldm-text2im-large-256`) of a pretrained pipeline
+                      hosted on the Hub.
+                    - A path to a *directory* (for example `./my_pipeline_directory/`) containing pipeline weights
+                      saved using
+                    [`~DiffusionPipeline.save_pretrained`].
+            model_type (`str`, *optional*, defaults to `Checkpoint`):
+                The type of model to search for. (for example `Checkpoint`, `TextualInversion`, `LORA`, `Controlnet`)
+            pipeline_tag (`str`, *optional*):
+                Tag to filter models by pipeline.
+            torch_dtype (`str` or `torch.dtype`, *optional*):
+                Override the default `torch.dtype` and load the model with another dtype. If "auto" is passed, the
+                dtype is automatically derived from the model's weights.
+            force_download (`bool`, *optional*, defaults to `False`):
+                Whether or not to force the (re-)download of the model weights and configuration files, overriding the
+                cached versions if they exist.
+            output_loading_info(`bool`, *optional*, defaults to `False`):
+                Whether or not to also return a dictionary containing missing keys, unexpected keys and error messages.
+            local_files_only (`bool`, *optional*, defaults to `False`):
+                Whether to only load local model weights and configuration files or not. If set to `True`, the model
+                won't be downloaded from the Hub.
+            token (`str`, *optional*):
+                The token to use as HTTP bearer authorization for remote files.
+            device_map (`str` or `Dict[str, Union[int, str, torch.device]]`, *optional*):
+                A map that specifies where each submodule should go. It doesn’t need to be defined for each
+                parameter/buffer name; once a given module name is inside, every submodule of it will be sent to the
+                same device.
+
+                Set `device_map="auto"` to have 🤗 Accelerate automatically compute the most optimized `device_map`. For
+                more information about each option see [designing a device
+                map](https://hf.co/docs/accelerate/main/en/usage_guides/big_modeling#designing-a-device-map).
+            max_memory (`Dict`, *optional*):
+                A dictionary device identifier for the maximum memory. Will default to the maximum memory available for
+                each GPU and the available CPU RAM if unset.
+            offload_folder (`str` or `os.PathLike`, *optional*):
+                The path to offload weights if device_map contains the value `"disk"`.
+            offload_state_dict (`bool`, *optional*):
+                If `True`, temporarily offloads the CPU state dict to the hard drive to avoid running out of CPU RAM if
+                the weight of the CPU state dict + the biggest shard of the checkpoint does not fit. Defaults to `True`
+                when there is some disk offload.
+            low_cpu_mem_usage (`bool`, *optional*, defaults to `True` if torch version >= 1.9.0 else `False`):
+                Speed up model loading only loading the pretrained weights and not initializing the weights. This also
+                tries to not use more than 1x model size in CPU memory (including peak memory) while loading the model.
+                Only supported for PyTorch >= 1.9.0. If you are using an older version of PyTorch, setting this
+                argument to `True` will raise an error.
+            use_safetensors (`bool`, *optional*, defaults to `None`):
+                If set to `None`, the safetensors weights are downloaded if they're available **and** if the
+                safetensors library is installed. If set to `True`, the model is forcibly loaded from safetensors
+                weights. If set to `False`, safetensors weights are not loaded.
+            kwargs (remaining dictionary of keyword arguments, *optional*):
+                Can be used to overwrite load and saveable variables (the pipeline components of the specific pipeline
+                class). The overwritten components are passed directly to the pipelines `__init__` method. See example
+                below for more information.
+
+        <Tip>
+
+        To use private or [gated](https://huggingface.co/docs/hub/models-gated#gated-models) models, log-in with
+        `huggingface-cli login`.
+
+        </Tip>
+
+        Examples:
+
+        ```py
+        >>> from diffusers import AutoPipelineForText2Image
+
+        >>> pipeline = AutoPipelineForText2Image.from_huggingface("stable-diffusion-v1-5")
+        >>> image = pipeline(prompt).images[0]
+        ```
+        """
+        # Update kwargs to ensure the model is downloaded and parameters are included
+        _status = {
+            "download": True,
+            "include_params": True,
+            "skip_error": False,
+            "model_type": "Checkpoint",
+        }
+        kwargs.update(_status)
+
+        # Search for the model on Civitai and get the model status
+        model_status = search_civitai(pretrained_model_link_or_path, **kwargs)
+        checkpoint_path = model_status.model_path
+
+        # Load the pipeline from a single file checkpoint
+        return load_pipeline_from_single_file(
+            pretrained_model_or_path=checkpoint_path,
+            pipeline_mapping=SINGLE_FILE_CHECKPOINT_TEXT2IMAGE_PIPELINE_MAPPING,
+            **kwargs
+        )
     
 
 
