@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import re
 from collections import OrderedDict
 from dataclasses import dataclass
 
@@ -25,8 +27,11 @@ from ..utils import (
 )
 from ..loaders.single_file_utils import (
     infer_diffusers_model_type,
-    load_single_file_checkpoint
+    load_single_file_checkpoint,
+    _extract_repo_id_and_weights_name,
+    VALID_URL_PREFIXES,
 )
+
 from .aura_flow import AuraFlowPipeline
 from .cogview3 import CogView3PlusPipeline
 from .controlnet import (
@@ -368,6 +373,86 @@ def load_pipeline_from_single_file(pretrained_model_link_or_path, pipeline_mappi
     else:
         # Instantiate and return the pipeline with the loaded checkpoint and any additional kwargs
         return pipeline_class.from_single_file(pretrained_model_link_or_path, checkpoint=checkpoint, **kwargs)
+
+
+def get_keyword_types(keyword):
+    r"""
+    Determine the type and loading method for a given keyword.
+
+    Parameters:
+        keyword (`str`):
+            The input keyword to classify.
+
+    Returns:
+        `dict`: A dictionary containing the model format, loading method,
+                and various types and extra types flags.
+    """
+    
+    # Initialize the status dictionary with default values
+    status = {
+        "checkpoint_format": None,
+        "loading_method": None,
+        "type": {
+            "other": False,
+            "hf_url": False,
+            "hf_repo": False,
+            "civitai_url": False,
+            "local": False,
+        },
+        "extra_type": {
+            "url": False,
+            "missing_model_index": None,
+        },
+    }
+    
+    # Check if the keyword is an HTTP or HTTPS URL
+    status["extra_type"]["url"] = bool(re.search(r"^(https?)://", keyword))
+    
+    # Check if the keyword is a file
+    if os.path.isfile(keyword):
+        status["type"]["local"] = True
+        status["checkpoint_format"] = "single_file"
+        status["loading_method"] = "from_single_file"
+    
+    # Check if the keyword is a directory
+    elif os.path.isdir(keyword):
+        status["type"]["local"] = True
+        status["checkpoint_format"] = "diffusers"
+        status["loading_method"] = "from_pretrained"
+        if not os.path.exists(os.path.join(keyword, "model_index.json")):
+            status["extra_type"]["missing_model_index"] = True
+    
+    # Check if the keyword is a Civitai URL
+    elif keyword.startswith("https://civitai.com/"):
+        status["type"]["civitai_url"] = True
+        status["checkpoint_format"] = "single_file"
+        status["loading_method"] = None
+    
+    # Check if the keyword starts with any valid URL prefixes
+    elif any(keyword.startswith(prefix) for prefix in VALID_URL_PREFIXES):
+        repo_id, weights_name = _extract_repo_id_and_weights_name(keyword)
+        if weights_name:
+            status["type"]["hf_url"] = True
+            status["checkpoint_format"] = "single_file"
+            status["loading_method"] = "from_single_file"
+        else:
+            status["type"]["hf_repo"] = True
+            status["checkpoint_format"] = "diffusers"
+            status["loading_method"] = "from_pretrained"
+    
+    # Check if the keyword matches a Hugging Face repository format
+    elif re.match(r"^[^/]+/[^/]+$", keyword):
+        status["type"]["hf_repo"] = True
+        status["checkpoint_format"] = "diffusers"
+        status["loading_method"] = "from_pretrained"
+    
+    # If none of the above apply
+    else:
+        status["type"]["other"] = True
+        status["checkpoint_format"] = None
+        status["loading_method"] = None
+    
+    return status
 
 
 @dataclass
