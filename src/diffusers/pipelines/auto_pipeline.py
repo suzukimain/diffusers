@@ -571,7 +571,7 @@ def search_huggingface(search_word: str, **kwargs):
             Whether to include parameters in the returned data.
         pipeline_tag (`str`, *optional*):
             Tag to filter models by pipeline.
-        hf_token (`str`, *optional*):
+        token (`str`, *optional*):
             API token for Hugging Face authentication.
         skip_error (`bool`, *optional*, defaults to `False`):
             Whether to skip errors and return None.
@@ -586,7 +586,7 @@ def search_huggingface(search_word: str, **kwargs):
     force_download = kwargs.pop("force_download", False)
     include_params = kwargs.pop("include_params", False)
     pipeline_tag = kwargs.pop("pipeline_tag", None)
-    hf_token = kwargs.pop("hf_token", None)
+    token = kwargs.pop("token", None)
     skip_error = kwargs.pop("skip_error", False)
 
     # Get the type and loading method for the keyword
@@ -597,7 +597,8 @@ def search_huggingface(search_word: str, **kwargs):
             model_path = DiffusionPipeline.download(
                 search_word,
                 revision=revision,
-                token=hf_token
+                token=token,
+                force_download=force_download,
             )
         else:
             model_path = search_word
@@ -608,7 +609,8 @@ def search_huggingface(search_word: str, **kwargs):
                 repo_id=repo_id,
                 filename=weights_name,
                 force_download=force_download,
-                token=hf_token
+                token=token,
+                force_download=force_download,
             )
         else:
             model_path = search_word
@@ -629,7 +631,7 @@ def search_huggingface(search_word: str, **kwargs):
             fetch_config=True,
             pipeline_tag=pipeline_tag,
             full=True,
-            token=hf_token
+            token=token
         )
         model_dicts = [asdict(value) for value in list(hf_models)]
         
@@ -687,7 +689,7 @@ def search_huggingface(search_word: str, **kwargs):
             if download:
                 model_path = DiffusionPipeline.download(
                     repo_id=repo_id,
-                    token=hf_token,
+                    token=token,
                 )
             else:
                 model_path = repo_id
@@ -708,7 +710,8 @@ def search_huggingface(search_word: str, **kwargs):
                     repo_id=repo_id,
                     filename=file_name,
                     revision=revision,
-                    token=hf_token
+                    token=token,
+                    force_download=force_download,
                 )
             else:
                 model_path = download_url
@@ -786,8 +789,7 @@ def search_civitai(search_word: str, **kwargs):
     params = {
         "query": search_word,
         "types": model_type,
-        "sort": "Highest Rated",
-        "limit": 20
+        "limit": 20,
     }
     if base_model is not None:
         params["baseModel"] = base_model
