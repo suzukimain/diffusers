@@ -671,11 +671,6 @@ def search_huggingface(search_word: str, **kwargs):
                 return None
             else:
                 raise ValueError("No models matching your criteria were found on huggingface.")
-        
-        if file_name:
-            download_url = f"https://huggingface.co/{repo_id}/blob/main/{file_name}"
-        else:
-            download_url = f"https://huggingface.co/{repo_id}"
 
         if diffusers_model_exists:
             if download:
@@ -696,6 +691,7 @@ def search_huggingface(search_word: str, **kwargs):
                 ),
                 file_list[0]
             )
+            
 
             if download:
                 model_path = hf_hub_download(
@@ -705,14 +701,17 @@ def search_huggingface(search_word: str, **kwargs):
                     token=token,
                     force_download=force_download,
                 )
-            else:
-                model_path = download_url
+            
+    if file_name:
+        download_url = f"https://huggingface.co/{repo_id}/blob/main/{file_name}"
+    else:
+            download_url = f"https://huggingface.co/{repo_id}"
     
     output_info = get_keyword_types(model_path)
 
     if include_params:
         return SearchResult(
-            model_path=model_path,
+            model_path=model_path or download_url,
             loading_method=output_info["loading_method"],
             checkpoint_format=output_info["checkpoint_format"],
             repo_status=RepoStatus(
