@@ -140,7 +140,6 @@ class RepoStatus:
     repo_hash: str = ""
     version: str = ""
 
-
 @dataclass
 class ModelStatus:
     r"""
@@ -163,7 +162,7 @@ class ModelStatus:
 
 
 @dataclass
-class SearchPipelineOutput:
+class PipelineSearchResult:
     r"""
     Data class for storing model data.
 
