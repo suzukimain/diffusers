@@ -577,7 +577,7 @@ def search_huggingface(search_word: str, **kwargs):
             Whether to skip errors and return None.
 
     Returns:
-        `Union[str, SearchPipelineOutput, None]`: The model path or SearchPipelineOutput or None.
+        `Union[str,  SearchResult, None]`: The model path or  SearchResult or None.
     """
     # Extract additional parameters from kwargs
     revision = kwargs.pop("revision", None)
@@ -760,7 +760,7 @@ def search_civitai(search_word: str, **kwargs):
             Whether to skip errors and return None.
 
     Returns:
-        `Union[str, SearchPipelineOutput, None]`: The model path or `SearchPipelineOutput` or None.
+        `Union[str,  SearchResult, None]`: The model path or ` SearchResult` or None.
     """
 
     # Extract additional parameters from kwargs
@@ -1200,17 +1200,25 @@ class AutoPipelineForText2Image(ConfigMixin):
         return model
     
     @classmethod
+    @validate_hf_hub_args
     def from_huggingface(cls, pretrained_model_link_or_path, **kwargs):
         r"""
         Parameters:
             pretrained_model_or_path (`str` or `os.PathLike`, *optional*):
                 Can be either:
 
+                    - A keyword to search for Hugging Face (for example `Stable Diffusion`)
+                    - Link to `.ckpt` or `.safetensors` file (for example
+                      `"https://huggingface.co/<repo_id>/blob/main/<path_to_file>.safetensors"`) on the Hub.
                     - A string, the *repo id* (for example `CompVis/ldm-text2im-large-256`) of a pretrained pipeline
                       hosted on the Hub.
                     - A path to a *directory* (for example `./my_pipeline_directory/`) containing pipeline weights
                       saved using
                     [`~DiffusionPipeline.save_pretrained`].
+            checkpoint_format (`str`, *optional*, defaults to `"single_file"`):
+                The format of the model checkpoint.
+            pipeline_tag (`str`, *optional*):
+                Tag to filter models by pipeline.
             torch_dtype (`str` or `torch.dtype`, *optional*):
                 Override the default `torch.dtype` and load the model with another dtype. If "auto" is passed, the
                 dtype is automatically derived from the model's weights.
@@ -1293,11 +1301,16 @@ class AutoPipelineForText2Image(ConfigMixin):
         >>> image = pipeline(prompt).images[0]
         ```
         """
-        kwargs["download"] = True
-        kwargs["include_params"] = True
-        model_status = search_huggingface(pretrained_model_link_or_path, **kwargs)
+        # Update kwargs to ensure the model is downloaded and parameters are included
+        kwargs.update({"download": True, "include_params": True})
+
+        # Search for the model on Hugging Face and get the model status
+        model_status = search_huggingface(pretrained_model_link_or_path, **kwargs)   
         checkpoint_path = model_status.model_path
+        
+        # Check the format of the model checkpoint
         if model_status.checkpoint_format == "single_file":
+            # Load the pipeline from a single file checkpoint
             return load_pipeline_from_single_file(
                 pretrained_model_or_path=checkpoint_path,
                 pipeline_mapping=SINGLE_FILE_CHECKPOINT_TEXT2IMAGE_PIPELINE_MAPPING,
@@ -1305,6 +1318,11 @@ class AutoPipelineForText2Image(ConfigMixin):
                 )
         else:
             return cls.from_pretrained(checkpoint_path, **kwargs)
+    
+    @classmethod
+    def from_civitai(cls):
+        search_civitai
+    
 
 
 class AutoPipelineForImage2Image(ConfigMixin):
