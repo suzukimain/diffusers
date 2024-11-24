@@ -610,7 +610,6 @@ def search_huggingface(search_word: str, **kwargs):
                 filename=weights_name,
                 force_download=force_download,
                 token=token,
-                force_download=force_download,
             )
         else:
             model_path = search_word
