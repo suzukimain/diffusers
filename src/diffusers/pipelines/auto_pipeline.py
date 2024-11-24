@@ -16,7 +16,10 @@
 import os
 import re
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import (
+    dataclass,
+    asdict
+)
 
 from huggingface_hub.utils import validate_hf_hub_args
 
@@ -103,6 +106,7 @@ from .stable_diffusion_xl import (
     StableDiffusionXLPipeline,
 )
 from .wuerstchen import WuerstchenCombinedPipeline, WuerstchenDecoderPipeline
+from .pipeline_utils import DiffusionPipeline
 
 logger = logging.get_logger(__name__)
 
@@ -243,6 +247,29 @@ SINGLE_FILE_CHECKPOINT_INPAINT_PIPELINE_MAPPING = OrderedDict(
     ]
 )
 
+CONFIG_FILE_LIST = [
+    "pytorch_model.bin",
+    "pytorch_model.fp16.bin",
+    "diffusion_pytorch_model.bin",
+    "diffusion_pytorch_model.fp16.bin",
+    "diffusion_pytorch_model.safetensors",
+    "diffusion_pytorch_model.fp16.safetensors",
+    "diffusion_pytorch_model.ckpt",
+    "diffusion_pytorch_model.fp16.ckpt",
+    "diffusion_pytorch_model.non_ema.bin",
+    "diffusion_pytorch_model.non_ema.safetensors",
+    "safety_checker/model.safetensors",
+    "safety_checker/model.ckpt",
+    "safety_checker/model.fp16.safetensors",
+    "safety_checker/model.fp16.ckpt",
+    "text_encoder/model.safetensors",
+    "text_encoder/model.fp16.safetensors",
+    "text_encoder/model.ckpt",
+    "text_encoder/model.fp16.ckpt",
+    "text_encoder_2/model.safetensors",
+    "text_encoder_2/model.ckpt",
+]
+
 INPAINT_PIPELINE_KEYS = [
     "xl_inpaint",
     "inpainting",
@@ -266,6 +293,67 @@ SUPPORTED_TASKS_MAPPINGS = [
     _AUTO_IMAGE2IMAGE_DECODER_PIPELINES_MAPPING,
     _AUTO_INPAINT_DECODER_PIPELINES_MAPPING,
 ]
+
+
+@dataclass
+class RepoStatus:
+    r"""
+    Data class for storing repository status information.
+
+    Attributes:
+        repo_id (`str`):
+            The name of the repository.
+        repo_hash (`str`):
+            The hash of the repository.
+        version (`str`):
+            The version ID of the repository.
+    """
+    repo_id: str = ""
+    repo_hash: str = ""
+    version: str = ""
+
+@dataclass
+class ModelStatus:
+    r"""
+    Data class for storing model status information.
+
+    Attributes:
+        search_word (`str`):
+            The search word used to find the model.
+        download_url (`str`):
+            The URL to download the model.
+        file_name (`str`):
+            The name of the model file.
+        local (`bool`):
+            Whether the model exists locally
+    """
+    search_word: str = ""
+    download_url: str = ""
+    file_name: str = ""
+    local: bool = False
+
+@dataclass
+class SearchResult:
+    r"""
+    Data class for storing model data.
+
+    Attributes:
+        model_path (`str`):
+            The path to the model.
+        loading_method (`str`):
+            The type of loading method used for the model ( None or 'from_single_file' or 'from_pretrained')
+        checkpoint_format (`str`):
+            The format of the model checkpoint (`single_file` or `diffusers`).
+        repo_status (`RepoStatus`):
+            The status of the repository.
+        model_status (`ModelStatus`):
+            The status of the model.
+    """
+    model_path: str = ""
+    loading_method: str = None  
+    checkpoint_format: str = None
+    repo_status: RepoStatus = RepoStatus()
+    model_status: ModelStatus = ModelStatus()
 
 
 def _get_connected_pipeline(pipeline_cls):
@@ -455,67 +543,190 @@ def get_keyword_types(keyword):
     return status
 
 
-@dataclass
-class RepoStatus:
+def search_huggingface(search_word: str, **kwargs):
     r"""
-    Data class for storing repository status information.
+    Downloads a model from Hugging Face.
 
-    Attributes:
-        repo_id (`str`):
-            The name of the repository.
-        repo_hash (`str`):
-            The hash of the repository.
-        version (`str`):
-            The version ID of the repository.
-    """
-    repo_id: str = ""
-    repo_hash: str = ""
-    version: str = ""
-
-@dataclass
-class ModelStatus:
-    r"""
-    Data class for storing model status information.
-
-    Attributes:
+    Parameters:
         search_word (`str`):
-            The search word used to find the model.
-        download_url (`str`):
-            The URL to download the model.
-        file_name (`str`):
-            The name of the model file.
-        local (`bool`):
-            Whether the model exists locally
+            The search query string.
+        revision (`str`, *optional*):
+            The specific version of the model to download.
+        checkpoint_format (`str`, *optional*, defaults to `"single_file"`):
+            The format of the model checkpoint.
+        download (`bool`, *optional*, defaults to `False`):
+            Whether to download the model.
+        force_download (`bool`, *optional*, defaults to `False`):
+            Whether to force the download if the model already exists.
+        include_params (`bool`, *optional*, defaults to `False`):
+            Whether to include parameters in the returned data.
+        pipeline_tag (`str`, *optional*):
+            Tag to filter models by pipeline.
+        hf_token (`str`, *optional*):
+            API token for Hugging Face authentication.
+        skip_error (`bool`, *optional*, defaults to `False`):
+            Whether to skip errors and return None.
+
+    Returns:
+        `Union[str, SearchPipelineOutput, None]`: The model path or SearchPipelineOutput or None.
     """
-    search_word: str = ""
-    download_url: str = ""
-    file_name: str = ""
-    local: bool = False
+    # Extract additional parameters from kwargs
+    revision = kwargs.pop("revision", None)
+    checkpoint_format = kwargs.pop("checkpoint_format", "single_file")
+    download = kwargs.pop("download", False)
+    force_download = kwargs.pop("force_download", False)
+    include_params = kwargs.pop("include_params", False)
+    pipeline_tag = kwargs.pop("pipeline_tag", None)
+    hf_token = kwargs.pop("hf_token", None)
+    skip_error = kwargs.pop("skip_error", False)
 
-@dataclass
-class SearchResult:
-    r"""
-    Data class for storing model data.
+    # Get the type and loading method for the keyword
+    search_word_status = get_keyword_types(search_word)
 
-    Attributes:
-        model_path (`str`):
-            The path to the model.
-        loading_method (`str`):
-            The type of loading method used for the model ( None or 'from_single_file' or 'from_pretrained')
-        checkpoint_format (`str`):
-            The format of the model checkpoint (`single_file` or `diffusers`).
-        repo_status (`RepoStatus`):
-            The status of the repository.
-        model_status (`ModelStatus`):
-            The status of the model.
-    """
-    model_path: str = ""
-    loading_method: str = None  
-    checkpoint_format: str = None
-    repo_status: RepoStatus = RepoStatus()
-    model_status: ModelStatus = ModelStatus()
+    if search_word_status["type"]["hf_repo"]:
+        if download:
+            model_path = DiffusionPipeline.download(
+                search_word,
+                revision=revision,
+                token=hf_token
+            )
+        else:
+            model_path = search_word
+    elif search_word_status["type"]["hf_url"]:
+        repo_id, weights_name = _extract_repo_id_and_weights_name(search_word)
+        if download:
+            model_path = hf_hub_download(
+                repo_id=repo_id,
+                filename=weights_name,
+                force_download=force_download,
+                token=hf_token
+            )
+        else:
+            model_path = search_word
+    elif search_word_status["type"]["local"]:
+        model_path = search_word
+    elif search_word_status["type"]["civitai_url"]:
+        if skip_error:
+            return None
+        else:
+            raise ValueError("The URL for Civitai is invalid with `for_hf`. Please use `for_civitai` instead.")
+    else:
+        # Get model data from HF API
+        hf_models = hf_api.list_models(
+            search=search_word,
+            sort="downloads",
+            direction=-1,
+            limit=100,
+            fetch_config=True,
+            pipeline_tag=pipeline_tag,
+            full=True,
+            token=hf_token
+        )
+        model_dicts = [asdict(value) for value in list(hf_models)]
+        
+        hf_repo_info = {}
+        file_list = []
+        repo_id, file_name = "", ""
+        diffusers_model_exists = False
 
+        # Loop through models to find a suitable candidate
+        for repo_info in model_dicts:
+            repo_id = repo_info["id"]
+            file_list = []
+            hf_repo_info = hf_api.model_info(
+                repo_id=repo_id,
+                securityStatus=True
+            )
+            # Lists files with security issues.
+            hf_security_info = hf_repo_info.security_repo_status
+            exclusion = [issue['path'] for issue in hf_security_info['filesWithIssues']]
 
+            # Checks for multi-folder diffusers model or valid files (models with security issues are excluded).
+            if hf_security_info["scansDone"]:
+                for info in repo_info["siblings"]:
+                    file_path = info["rfilename"]
+                    if (
+                        "model_index.json" == file_path
+                        and checkpoint_format in ["diffusers", "all"]
+                    ):
+                        diffusers_model_exists = True
+                        break
+                    
+                    elif (
+                        any(file_path.endswith(ext) for ext in EXTENSION)
+                        and not any(config in file_path for config in CONFIG_FILE_LIST)
+                        and not any(exc in file_path for exc in exclusion)
+                    ):
+                        file_list.append(file_path)
+            
+            # Exit from the loop if a multi-folder diffusers model or valid file is found
+            if diffusers_model_exists or file_list:
+                break
+        else:
+            # Handle case where no models match the criteria
+            if skip_error:
+                return None
+            else:
+                raise ValueError("No models matching your criteria were found on huggingface.")
+        
+        if file_name:
+            download_url = f"https://huggingface.co/{repo_id}/blob/main/{file_name}"
+        else:
+            download_url = f"https://huggingface.co/{repo_id}"
+
+        if diffusers_model_exists:
+            if download:
+                model_path = DiffusionPipeline.download(
+                    repo_id=repo_id,
+                    token=hf_token,
+                )
+            else:
+                model_path = repo_id
+                
+        elif file_list:
+            # Sort and find the safest model
+            file_name = next(
+                (
+                    model
+                    for model in sorted(file_list, reverse=True)
+                    if re.search(r"(?i)[-_](safe|sfw)", model)
+                ),
+                file_list[0]
+            )
+
+            if download:
+                model_path = hf_hub_download(
+                    repo_id=repo_id,
+                    filename=file_name,
+                    revision=revision,
+                    token=hf_token
+                )
+            else:
+                model_path = download_url
+    
+    output_info = get_keyword_types(model_path)
+
+    if include_params:
+        return SearchPipelineOutput(
+            model_path=model_path,
+            loading_method=output_info["loading_method"],
+            checkpoint_format=output_info["checkpoint_format"],
+            repo_status=RepoStatus(
+                repo_id=repo_id,
+                repo_hash=hf_repo_info.sha,
+                version=revision
+            ),
+            model_status=ModelStatus(
+                search_word=search_word,
+                download_url=download_url,
+                file_name=file_name,
+                local=download,
+            )
+        )
+    
+    else:
+        return model_path
+    
 
 class AutoPipelineForText2Image(ConfigMixin):
     r"""
