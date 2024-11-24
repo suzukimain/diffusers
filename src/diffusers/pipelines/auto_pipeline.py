@@ -617,7 +617,6 @@ def search_huggingface(search_word: str, **kwargs):
         # Get model data from HF API
         hf_models = hf_api.list_models(
             search=search_word,
-            sort="trending",
             direction=-1,
             limit=100,
             fetch_config=True,
