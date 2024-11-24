@@ -1,5 +1,42 @@
 from ..loaders.single_file_utils import infer_diffusers_model_type,load_single_file_checkpoint
 
+AUTO_TEXT2IMAGE_SINGLE_FILE_CHECKPOINT_MAPPING = {
+    "xl_base": 1024,
+    "xl_refiner": 1024,
+    "xl_inpaint": None,
+    "playground-v2-5": DiffusionPipeline,
+    "upscale": 512,
+    "inpainting": 512,
+    "inpainting_v2": 512,
+    "controlnet": 512,
+    "v2": StableDiffusionPipeline,
+    "v1": StableDiffusionPipeline,
+}
+AUTO_IMAGE2IMAGE_SINGLE_FILE_CHECKPOINT_MAPPING = {
+    "xl_base": 1024,
+    "xl_refiner": 1024,
+    "xl_inpaint": 1024,
+    "playground-v2-5": 1024,
+    "upscale": 512,
+    "inpainting": 512,
+    "inpainting_v2": 512,
+    "controlnet": 512,
+    "v2": 768,
+    "v1": 512,
+}
+AUTO_INPAINT_SINGLE_FILE_CHECKPOINT_MAPPING = {
+    "xl_base": 1024,
+    "xl_refiner": 1024,
+    "xl_inpaint": 1024,
+    "playground-v2-5": 1024,
+    "upscale": 512,
+    "inpainting": 512,
+    "inpainting_v2": 512,
+    "controlnet": 512,
+    "v2": StableDiffusionInpaintPipeline,
+    "v1": StableDiffusionInpaintPipeline,
+}
+
 import importlib
 import inspect
 import os
@@ -107,62 +144,64 @@ from .pipeline_utils import DiffusionPipeline
 from ..utils import logging
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
-def auto_load_single_file_checkpoint(pretrained_model_link_or_path):
+def auto_load_single_file_checkpoint(pretrained_model_link_or_path,pipeline_mapping,**kwargs):
     checkpoint = load_single_file_checkpoint(pretrained_model_link_or_path)
-    _pipeline_class = infer_diffusers_model_type(checkpoint)
+    model_type = infer_diffusers_model_type(checkpoint)
+    pipeline_class = pipeline_mapping[model_type]
+    if pipeline_class is None:
+        if pipeline_class in INPAINT_PIPELINE_KEYS:
+            raise ValueError("`inpaint` is only supported in `AutoPipelineForInpainting.from_pretrained`")
+        else:
+            raise ValueError(f"{pipeline_class} is not supported.")
+    else:
+        return pipeline_class.from_single_file(pretrained_model_link_or_path, checkpoint=checkpoint, **kwargs)
 
 
 
-DIFFUSERS_TO_LDM_DEFAULT_IMAGE_SIZE_MAP = {
-    "xl_base": 1024,
-    "xl_refiner": 1024,
-    "xl_inpaint": 1024,
-    "playground-v2-5": 1024,
-    "upscale": 512,
-    "inpainting": 512,
-    "inpainting_v2": 512,
-    "controlnet": 512,
-    "v2": 768,
-    "v1": 512,
-}
 
 
-AUTO_TEXT2IMAGE_SINGLE_FILE_CHECKPOINT_MAPPING = {
-    "xl_base": 1024,
-    "xl_refiner": 1024,
+
+SINGLE_FILE_CHECKPOINT_TEXT2IMAGE_PIPELINE_MAPPING = {
+    "xl_base": StableDiffusionXLPipeline,
+    "xl_refiner": StableDiffusionXLPipeline,
     "xl_inpaint": None,
-    "playground-v2-5": DiffusionPipeline,
-    "upscale": 512,
-    "inpainting": 512,
-    "inpainting_v2": 512,
-    "controlnet": 512,
-    "v2": 768,
-    "v1": 512,
+    "playground-v2-5": StableDiffusionXLPipeline,
+    "upscale": None,
+    "inpainting": None,
+    "inpainting_v2": None,
+    "controlnet": StableDiffusionControlNetPipeline,
+    "v2": StableDiffusionPipeline,
+    "v1": StableDiffusionPipeline,
 }
-AUTO_IMAGE2IMAGE_SINGLE_FILE_CHECKPOINT_MAPPING = {
-    "xl_base": 1024,
-    "xl_refiner": 1024,
-    "xl_inpaint": 1024,
-    "playground-v2-5": 1024,
-    "upscale": 512,
-    "inpainting": 512,
-    "inpainting_v2": 512,
-    "controlnet": 512,
-    "v2": 768,
-    "v1": 512,
-}
-AUTO_INPAINT_SINGLE_FILE_CHECKPOINT_MAPPING = {
-    "xl_base": 1024,
-    "xl_refiner": 1024,
-    "xl_inpaint": 1024,
-    "playground-v2-5": 1024,
-    "upscale": 512,
-    "inpainting": 512,
-    "inpainting_v2": 512,
-    "controlnet": 512,
-    "v2": 768,
-    "v1": 512,
+SINGLE_FILE_CHECKPOINT_IMAGE2IMAGE_PIPELINE_MAPPING = {
+    "xl_base": StableDiffusionXLImg2ImgPipeline,
+    "xl_refiner": StableDiffusionXLImg2ImgPipeline,
+    "xl_inpaint": None,
+    "playground-v2-5": StableDiffusionXLImg2ImgPipeline,
+    "upscale": None,
+    "inpainting": None,
+    "inpainting_v2": None,
+    "controlnet": StableDiffusionControlNetImg2ImgPipeline,
+    "v2": StableDiffusionImg2ImgPipeline,
+    "v1": StableDiffusionImg2ImgPipeline,
+
 }
 
+SINGLE_FILE_CHECKPOINT_INPAINT_PIPELINE_MAPPING = {
+    "xl_base": None,
+    "xl_refiner": None,
+    "xl_inpaint": StableDiffusionXLInpaintPipeline,
+    "playground-v2-5": None,
+    "upscale": None,
+    "inpainting": StableDiffusionInpaintPipeline,
+    "inpainting_v2": StableDiffusionInpaintPipeline,
+    "controlnet": StableDiffusionControlNetInpaintPipeline,
+    "v2": None,
+    "v1": None,
+}
 
-
+INPAINT_PIPELINE_KEYS = [
+    "xl_inpaint",
+    "inpainting",
+    "inpainting_v2",
+    ]
