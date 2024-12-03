@@ -79,23 +79,24 @@ pipeline = EasyPipelineForInpainting.from_huggingface(
 
 ### Arguments of `EasyPipeline.from_civitai`
 
-| Name            | Type   | Default       | Input Available   | Description                                                                         |
-|:---------------:|:------:|:-------------:|:-----------------:|:-----------------------------------------------------------------------------------:|
-| search_word     | string | ー            | ー                 | The search query string. Can be a keyword, Civitai URL, local directory or file path.                                                             |
-| model_type      | string | `Checkpoint`  | [Details](#model_type)            | The type of model to search for.                                                      |
-| base_model      | string | None          | ー                 | Trained model tag (example:  `SD 1.5`, `SD 3.5`, `SDXL 1.0`)                          |
-| force_download  | bool   | False         | ー                 | Whether to force the download if the model already exists.                            |
-| torch_dtype     | string, torch.dtype   | None         | ー                 | Override the default `torch.dtype` and load the model with another dtype.                                                         |
-| cache_dir       | string, Path | None    | ー                 | Path to the folder where cached files are stored.                                     |
-| resume          | bool   | False         | ー                 | Whether to resume an incomplete download.                                             |
-| token           | string | None          | ー                 | API token for Civitai authentication.                                                 |
-| skip_error      | bool   | False         | ー                 | Whether to skip errors and return None.                                               |
+| Name            | Type   | Default       | Description                                                                         |
+|:---------------:|:------:|:-------------:|:-----------------------------------------------------------------------------------:|
+| search_word     | string | ー            | The search query string. Can be a keyword, Civitai URL, local directory or file path. |
+| model_type      | string | `Checkpoint`  | The type of model to search for. [Details](#model_type)                             |
+| base_model      | string | None          | Trained model tag (example:  `SD 1.5`, `SD 3.5`, `SDXL 1.0`)                        |
+| force_download  | bool   | False         | Whether to force the download if the model already exists.                          |
+| torch_dtype     | string, torch.dtype | None   | Override the default `torch.dtype` and load the model with another dtype.           |
+| cache_dir       | string, Path | None         | Path to the folder where cached files are stored.                                   |
+| resume          | bool   | False         | Whether to resume an incomplete download.                                           |
+| token           | string | None          | API token for Civitai authentication.                                               |
+| skip_error      | bool   | False         | Whether to skip errors and return None.                                             |
 
 
 
 
 
 
+### Arguments of `EasyPipeline.from_huggingface`
 
 | Name                  | Type                            | Default        | Input Available   | Description                                                                                                          |
 |:---------------------:|:------------------------------:|:--------------:|:-----------------:|:--------------------------------------------------------------------------------------------------------------------:|
