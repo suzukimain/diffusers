@@ -16,12 +16,11 @@ import inspect
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
-import PIL.Image
 import torch
 from transformers import CLIPTextModel, CLIPTokenizer, T5EncoderModel, T5TokenizerFast
 
 from ...image_processor import PipelineImageInput, VaeImageProcessor
-from ...loaders import FluxLoraLoaderMixin, TextualInversionLoaderMixin
+from ...loaders import FluxLoraLoaderMixin, FromSingleFileMixin, TextualInversionLoaderMixin
 from ...models.autoencoders import AutoencoderKL
 from ...models.transformers import FluxTransformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
@@ -52,18 +51,38 @@ EXAMPLE_DOC_STRING = """
     Examples:
         ```py
         >>> import torch
-        >>> from diffusers import FluxInpaintPipeline
+        >>> from controlnet_aux import CannyDetector
+        >>> from diffusers import FluxControlImg2ImgPipeline
         >>> from diffusers.utils import load_image
 
-        >>> pipe = FluxInpaintPipeline.from_pretrained("black-forest-labs/FLUX.1-schnell", torch_dtype=torch.bfloat16)
-        >>> pipe.to("cuda")
-        >>> prompt = "Face of a yellow cat, high resolution, sitting on a park bench"
-        >>> img_url = "https://raw.githubusercontent.com/CompVis/latent-diffusion/main/data/inpainting_examples/overture-creations-5sI6fQgYIuo.png"
-        >>> mask_url = "https://raw.githubusercontent.com/CompVis/latent-diffusion/main/data/inpainting_examples/overture-creations-5sI6fQgYIuo_mask.png"
-        >>> source = load_image(img_url)
-        >>> mask = load_image(mask_url)
-        >>> image = pipe(prompt=prompt, image=source, mask_image=mask).images[0]
-        >>> image.save("flux_inpainting.png")
+        >>> pipe = FluxControlImg2ImgPipeline.from_pretrained(
+        ...     "black-forest-labs/FLUX.1-Canny-dev", torch_dtype=torch.bfloat16
+        ... ).to("cuda")
+
+        >>> prompt = "A robot made of exotic candies and chocolates of different kinds. Abstract background"
+        >>> image = load_image(
+        ...     "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/watercolor-painting.jpg"
+        ... )
+        >>> control_image = load_image(
+        ...     "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/robot.png"
+        ... )
+
+        >>> processor = CannyDetector()
+        >>> control_image = processor(
+        ...     control_image, low_threshold=50, high_threshold=200, detect_resolution=1024, image_resolution=1024
+        ... )
+
+        >>> image = pipe(
+        ...     prompt=prompt,
+        ...     image=image,
+        ...     control_image=control_image,
+        ...     strength=0.8,
+        ...     height=1024,
+        ...     width=1024,
+        ...     num_inference_steps=50,
+        ...     guidance_scale=30.0,
+        ... ).images[0]
+        >>> image.save("output.png")
         ```
 """
 
@@ -156,7 +175,7 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
+class FluxControlImg2ImgPipeline(DiffusionPipeline, FluxLoraLoaderMixin, FromSingleFileMixin):
     r"""
     The Flux pipeline for image inpainting.
 
@@ -214,13 +233,6 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
         # Flux latents are turned into 2x2 patches and packed. This means the latent width and height has to be divisible
         # by the patch size. So the vae scale factor is multiplied by the patch size to account for this
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor * 2)
-        self.mask_processor = VaeImageProcessor(
-            vae_scale_factor=self.vae_scale_factor * 2,
-            vae_latent_channels=self.vae.config.latent_channels,
-            do_normalize=False,
-            do_binarize=True,
-            do_convert_grayscale=True,
-        )
         self.tokenizer_max_length = (
             self.tokenizer.model_max_length if hasattr(self, "tokenizer") and self.tokenizer is not None else 77
         )
@@ -428,20 +440,17 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
 
         return timesteps, num_inference_steps - t_start
 
+    # Copied from diffusers.pipelines.flux.pipeline_flux_img2img.FluxImg2ImgPipeline.check_inputs
     def check_inputs(
         self,
         prompt,
         prompt_2,
-        image,
-        mask_image,
         strength,
         height,
         width,
-        output_type,
         prompt_embeds=None,
         pooled_prompt_embeds=None,
         callback_on_step_end_tensor_inputs=None,
-        padding_mask_crop=None,
         max_sequence_length=None,
     ):
         if strength < 0 or strength > 1:
@@ -482,19 +491,6 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
             raise ValueError(
                 "If `prompt_embeds` are provided, `pooled_prompt_embeds` also have to be passed. Make sure to generate `pooled_prompt_embeds` from the same text encoder that was used to generate `prompt_embeds`."
             )
-
-        if padding_mask_crop is not None:
-            if not isinstance(image, PIL.Image.Image):
-                raise ValueError(
-                    f"The image should be a PIL image when inpainting mask crop, but is of type" f" {type(image)}."
-                )
-            if not isinstance(mask_image, PIL.Image.Image):
-                raise ValueError(
-                    f"The mask image should be a PIL image when inpainting mask crop, but is of type"
-                    f" {type(mask_image)}."
-                )
-            if output_type != "pil":
-                raise ValueError(f"The output type should be PIL when inpainting mask crop, but is" f" {output_type}.")
 
         if max_sequence_length is not None and max_sequence_length > 512:
             raise ValueError(f"`max_sequence_length` cannot be greater than 512 but is {max_sequence_length}")
@@ -540,6 +536,7 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
 
         return latents
 
+    # Copied from diffusers.pipelines.flux.pipeline_flux_img2img.FluxImg2ImgPipeline.prepare_latents
     def prepare_latents(
         self,
         image,
@@ -566,9 +563,11 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
         shape = (batch_size, num_channels_latents, height, width)
         latent_image_ids = self._prepare_latent_image_ids(batch_size, height // 2, width // 2, device, dtype)
 
+        if latents is not None:
+            return latents.to(device=device, dtype=dtype), latent_image_ids
+
         image = image.to(device=device, dtype=dtype)
         image_latents = self._encode_vae_image(image=image, generator=generator)
-
         if batch_size > image_latents.shape[0] and batch_size % image_latents.shape[0] == 0:
             # expand init_latents for batch_size
             additional_image_per_prompt = batch_size // image_latents.shape[0]
@@ -580,88 +579,45 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
         else:
             image_latents = torch.cat([image_latents], dim=0)
 
-        if latents is None:
-            noise = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
-            latents = self.scheduler.scale_noise(image_latents, timestep, noise)
-        else:
-            noise = latents.to(device)
-            latents = noise
-
-        noise = self._pack_latents(noise, batch_size, num_channels_latents, height, width)
-        image_latents = self._pack_latents(image_latents, batch_size, num_channels_latents, height, width)
+        noise = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
+        latents = self.scheduler.scale_noise(image_latents, timestep, noise)
         latents = self._pack_latents(latents, batch_size, num_channels_latents, height, width)
-        return latents, noise, image_latents, latent_image_ids
+        return latents, latent_image_ids
 
-    def prepare_mask_latents(
+    # Copied from diffusers.pipelines.controlnet_sd3.pipeline_stable_diffusion_3_controlnet.StableDiffusion3ControlNetPipeline.prepare_image
+    def prepare_image(
         self,
-        mask,
-        masked_image,
-        batch_size,
-        num_channels_latents,
-        num_images_per_prompt,
-        height,
+        image,
         width,
-        dtype,
+        height,
+        batch_size,
+        num_images_per_prompt,
         device,
-        generator,
+        dtype,
+        do_classifier_free_guidance=False,
+        guess_mode=False,
     ):
-        # VAE applies 8x compression on images but we must also account for packing which requires
-        # latent height and width to be divisible by 2.
-        height = 2 * (int(height) // (self.vae_scale_factor * 2))
-        width = 2 * (int(width) // (self.vae_scale_factor * 2))
-        # resize the mask to latents shape as we concatenate the mask to the latents
-        # we do that before converting to dtype to avoid breaking in case we're using cpu_offload
-        # and half precision
-        mask = torch.nn.functional.interpolate(mask, size=(height, width))
-        mask = mask.to(device=device, dtype=dtype)
-
-        batch_size = batch_size * num_images_per_prompt
-
-        masked_image = masked_image.to(device=device, dtype=dtype)
-
-        if masked_image.shape[1] == 16:
-            masked_image_latents = masked_image
+        if isinstance(image, torch.Tensor):
+            pass
         else:
-            masked_image_latents = retrieve_latents(self.vae.encode(masked_image), generator=generator)
+            image = self.image_processor.preprocess(image, height=height, width=width)
 
-        masked_image_latents = (masked_image_latents - self.vae.config.shift_factor) * self.vae.config.scaling_factor
+        image_batch_size = image.shape[0]
 
-        # duplicate mask and masked_image_latents for each generation per prompt, using mps friendly method
-        if mask.shape[0] < batch_size:
-            if not batch_size % mask.shape[0] == 0:
-                raise ValueError(
-                    "The passed mask and the required batch size don't match. Masks are supposed to be duplicated to"
-                    f" a total batch size of {batch_size}, but {mask.shape[0]} masks were passed. Make sure the number"
-                    " of masks that you pass is divisible by the total requested batch size."
-                )
-            mask = mask.repeat(batch_size // mask.shape[0], 1, 1, 1)
-        if masked_image_latents.shape[0] < batch_size:
-            if not batch_size % masked_image_latents.shape[0] == 0:
-                raise ValueError(
-                    "The passed images and the required batch size don't match. Images are supposed to be duplicated"
-                    f" to a total batch size of {batch_size}, but {masked_image_latents.shape[0]} images were passed."
-                    " Make sure the number of images that you pass is divisible by the total requested batch size."
-                )
-            masked_image_latents = masked_image_latents.repeat(batch_size // masked_image_latents.shape[0], 1, 1, 1)
+        if image_batch_size == 1:
+            repeat_by = batch_size
+        else:
+            # image batch size is the same as prompt batch size
+            repeat_by = num_images_per_prompt
 
-        # aligning device to prevent device errors when concating it with the latent model input
-        masked_image_latents = masked_image_latents.to(device=device, dtype=dtype)
-        masked_image_latents = self._pack_latents(
-            masked_image_latents,
-            batch_size,
-            num_channels_latents,
-            height,
-            width,
-        )
-        mask = self._pack_latents(
-            mask.repeat(1, num_channels_latents, 1, 1),
-            batch_size,
-            num_channels_latents,
-            height,
-            width,
-        )
+        image = image.repeat_interleave(repeat_by, dim=0)
 
-        return mask, masked_image_latents
+        image = image.to(device=device, dtype=dtype)
+
+        if do_classifier_free_guidance and not guess_mode:
+            image = torch.cat([image] * 2)
+
+        return image
 
     @property
     def guidance_scale(self):
@@ -686,11 +642,9 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
         prompt: Union[str, List[str]] = None,
         prompt_2: Optional[Union[str, List[str]]] = None,
         image: PipelineImageInput = None,
-        mask_image: PipelineImageInput = None,
-        masked_image_latents: PipelineImageInput = None,
+        control_image: PipelineImageInput = None,
         height: Optional[int] = None,
         width: Optional[int] = None,
-        padding_mask_crop: Optional[int] = None,
         strength: float = 0.6,
         num_inference_steps: int = 28,
         sigmas: Optional[List[float]] = None,
@@ -723,27 +677,18 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
                 or tensors, the expected shape should be `(B, C, H, W)` or `(C, H, W)`. If it is a numpy array or a
                 list of arrays, the expected shape should be `(B, H, W, C)` or `(H, W, C)` It can also accept image
                 latents as `image`, but if passing latents directly it is not encoded again.
-            mask_image (`torch.Tensor`, `PIL.Image.Image`, `np.ndarray`, `List[torch.Tensor]`, `List[PIL.Image.Image]`, or `List[np.ndarray]`):
-                `Image`, numpy array or tensor representing an image batch to mask `image`. White pixels in the mask
-                are repainted while black pixels are preserved. If `mask_image` is a PIL image, it is converted to a
-                single channel (luminance) before use. If it's a numpy array or pytorch tensor, it should contain one
-                color channel (L) instead of 3, so the expected shape for pytorch tensor would be `(B, 1, H, W)`, `(B,
-                H, W)`, `(1, H, W)`, `(H, W)`. And for numpy array would be for `(B, H, W, 1)`, `(B, H, W)`, `(H, W,
-                1)`, or `(H, W)`.
-            mask_image_latent (`torch.Tensor`, `List[torch.Tensor]`):
-                `Tensor` representing an image batch to mask `image` generated by VAE. If not provided, the mask
-                latents tensor will ge generated by `mask_image`.
+            control_image (`torch.Tensor`, `PIL.Image.Image`, `np.ndarray`, `List[torch.Tensor]`, `List[PIL.Image.Image]`, `List[np.ndarray]`,:
+                    `List[List[torch.Tensor]]`, `List[List[np.ndarray]]` or `List[List[PIL.Image.Image]]`):
+                The ControlNet input condition to provide guidance to the `unet` for generation. If the type is
+                specified as `torch.Tensor`, it is passed to ControlNet as is. `PIL.Image.Image` can also be accepted
+                as an image. The dimensions of the output image defaults to `image`'s dimensions. If height and/or
+                width are passed, `image` is resized accordingly. If multiple ControlNets are specified in `init`,
+                images must be passed as a list such that each element of the list can be correctly batched for input
+                to a single ControlNet.
             height (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):
                 The height in pixels of the generated image. This is set to 1024 by default for the best results.
             width (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):
                 The width in pixels of the generated image. This is set to 1024 by default for the best results.
-            padding_mask_crop (`int`, *optional*, defaults to `None`):
-                The size of margin in the crop to be applied to the image and masking. If `None`, no crop is applied to
-                image and mask_image. If `padding_mask_crop` is not `None`, it will first find a rectangular region
-                with the same aspect ration of the image and contains all masked area, and then expand that area based
-                on `padding_mask_crop`. The image and mask_image will then be cropped based on the expanded area before
-                resizing to the original image size for inpainting. This is useful when the masked area is small while
-                the image is large and contain information irrelevant for inpainting, such as background.
             strength (`float`, *optional*, defaults to 1.0):
                 Indicates extent to transform the reference `image`. Must be between 0 and 1. `image` is used as a
                 starting point and more noise is added the higher the `strength`. The number of denoising steps depends
@@ -813,16 +758,12 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
         self.check_inputs(
             prompt,
             prompt_2,
-            image,
-            mask_image,
             strength,
             height,
             width,
-            output_type=output_type,
             prompt_embeds=prompt_embeds,
             pooled_prompt_embeds=pooled_prompt_embeds,
             callback_on_step_end_tensor_inputs=callback_on_step_end_tensor_inputs,
-            padding_mask_crop=padding_mask_crop,
             max_sequence_length=max_sequence_length,
         )
 
@@ -830,18 +771,8 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
         self._joint_attention_kwargs = joint_attention_kwargs
         self._interrupt = False
 
-        # 2. Preprocess mask and image
-        if padding_mask_crop is not None:
-            crops_coords = self.mask_processor.get_crop_region(mask_image, width, height, pad=padding_mask_crop)
-            resize_mode = "fill"
-        else:
-            crops_coords = None
-            resize_mode = "default"
-
-        original_image = image
-        init_image = self.image_processor.preprocess(
-            image, height=height, width=width, crops_coords=crops_coords, resize_mode=resize_mode
-        )
+        # 2. Preprocess image
+        init_image = self.image_processor.preprocess(image, height=height, width=width)
         init_image = init_image.to(dtype=torch.float32)
 
         # 3. Define call parameters
@@ -854,6 +785,7 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
 
         device = self._execution_device
 
+        # 3. Prepare text embeddings
         lora_scale = (
             self.joint_attention_kwargs.get("scale", None) if self.joint_attention_kwargs is not None else None
         )
@@ -899,10 +831,32 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
         latent_timestep = timesteps[:1].repeat(batch_size * num_images_per_prompt)
 
         # 5. Prepare latent variables
-        num_channels_latents = self.transformer.config.in_channels // 4
-        num_channels_transformer = self.transformer.config.in_channels
+        num_channels_latents = self.transformer.config.in_channels // 8
 
-        latents, noise, image_latents, latent_image_ids = self.prepare_latents(
+        control_image = self.prepare_image(
+            image=control_image,
+            width=width,
+            height=height,
+            batch_size=batch_size * num_images_per_prompt,
+            num_images_per_prompt=num_images_per_prompt,
+            device=device,
+            dtype=self.vae.dtype,
+        )
+
+        if control_image.ndim == 4:
+            control_image = self.vae.encode(control_image).latent_dist.sample(generator=generator)
+            control_image = (control_image - self.vae.config.shift_factor) * self.vae.config.scaling_factor
+
+            height_control_image, width_control_image = control_image.shape[2:]
+            control_image = self._pack_latents(
+                control_image,
+                batch_size * num_images_per_prompt,
+                num_channels_latents,
+                height_control_image,
+                width_control_image,
+            )
+
+        latents, latent_image_ids = self.prepare_latents(
             init_image,
             latent_timestep,
             batch_size * num_images_per_prompt,
@@ -913,28 +867,6 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
             device,
             generator,
             latents,
-        )
-
-        mask_condition = self.mask_processor.preprocess(
-            mask_image, height=height, width=width, resize_mode=resize_mode, crops_coords=crops_coords
-        )
-
-        if masked_image_latents is None:
-            masked_image = init_image * (mask_condition < 0.5)
-        else:
-            masked_image = masked_image_latents
-
-        mask, masked_image_latents = self.prepare_mask_latents(
-            mask_condition,
-            masked_image,
-            batch_size,
-            num_channels_latents,
-            num_images_per_prompt,
-            height,
-            width,
-            prompt_embeds.dtype,
-            device,
-            generator,
         )
 
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
@@ -953,10 +885,13 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
                 if self.interrupt:
                     continue
 
+                latent_model_input = torch.cat([latents, control_image], dim=2)
+
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.expand(latents.shape[0]).to(latents.dtype)
+
                 noise_pred = self.transformer(
-                    hidden_states=latents,
+                    hidden_states=latent_model_input,
                     timestep=timestep / 1000,
                     guidance=guidance,
                     pooled_projections=pooled_prompt_embeds,
@@ -970,18 +905,6 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
                 # compute the previous noisy sample x_t -> x_t-1
                 latents_dtype = latents.dtype
                 latents = self.scheduler.step(noise_pred, t, latents, return_dict=False)[0]
-
-                # for 64 channel transformer only.
-                init_latents_proper = image_latents
-                init_mask = mask
-
-                if i < len(timesteps) - 1:
-                    noise_timestep = timesteps[i + 1]
-                    init_latents_proper = self.scheduler.scale_noise(
-                        init_latents_proper, torch.tensor([noise_timestep]), noise
-                    )
-
-                latents = (1 - init_mask) * init_latents_proper + init_mask * latents
 
                 if latents.dtype != latents_dtype:
                     if torch.backends.mps.is_available():
