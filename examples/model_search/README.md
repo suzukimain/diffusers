@@ -19,50 +19,99 @@ pip install .
 !wget https://raw.githubusercontent.com/suzukimain/diffusers/refs/heads/ModelSearch/examples/model_search/search_for_civitai_and_HF.py
 ```
 
+### Search for Civitai
 ```python
-# Search for Civitai
-
-from search_for_civitai_and_HF import CivitaiSearchPipeline
-from diffusers import StableDiffusionPipeline
-
-
-model_path = CivitaiSearchPipeline.for_civitai(
-    "any",
-    base_model="SD 1.5",
-    download=True
+from pipeline_easy import (
+    EasyPipelineForText2Image,
+    EasyPipelineForImage2Image,
+    EasyPipelineForInpainting,
 )
-pipe = StableDiffusionPipeline.from_single_file(model_path).to("cuda")
 
+# Text-to-Image
+pipeline = EasyPipelineForText2Image.from_civitai(
+    "search_word",
+    base_model="SD 1.5",
+).to("cuda")
+
+
+# Image-to-Image
+pipeline = EasyPipelineForImage2Image.from_civitai(
+    "search_word",
+    base_model="SD 1.5",
+).to("cuda")
+
+
+# Inpainting
+pipeline = EasyPipelineForInpainting.from_civitai(
+    "search_word",
+    base_model="SD 1.5",
+).to("cuda")
 ```
 
-
+### Search for Hugging Face
 ```python
-# Search for Hugging Face
+from pipeline_easy import (
+    EasyPipelineForText2Image,
+    EasyPipelineForImage2Image,
+    EasyPipelineForInpainting,
+)
 
-from search_for_civitai_and_HF import HFSearchPipeline
-from diffusers import StableDiffusionPipeline
+# Text-to-Image
+pipeline = EasyPipelineForText2Image.from_huggingface(
+    "search_word",
+    checkpoint_format="diffusers",
+).to("cuda")
 
-model_path = HFSearchPipeline.for_HF(
-           "stable",
-           checkpoint_format="diffusers",
-           download = False
-           )
 
-pipe = StableDiffusionPipeline.from_pretrained(model_path).to("cuda")
+# Image-to-Image
+pipeline = EasyPipelineForImage2Image.from_huggingface(
+    "search_word",
+    checkpoint_format="diffusers",
+).to("cuda")
 
-# or
 
-model_path = HFSearchPipeline.for_HF(
-           "stable",
-           checkpoint_format="single_file",
-           download = False
-           )
-
-pipe = StableDIffusionPipeline.from_single_file(model_path).to("cuda")
+# Inpainting
+pipeline = EasyPipelineForInpainting.from_huggingface(
+    "search_word",
+    checkpoint_format="diffusers",
+).to("cuda")
 ```
+
+### Arguments of `EasyPipeline.from_civitai`
+
+| Name            | Type   | Default       | Input Available   | Description                                                                         |
+|:---------------:|:------:|:-------------:|:-----------------:|:-----------------------------------------------------------------------------------:|
+| search_word     | string | ー            | ー                 | The search query string. Can be a keyword, Civitai URL, local directory or file path.                                                             |
+| model_type      | string | `Checkpoint`  | [Details](#model_type)            | The type of model to search for.                                                      |
+| base_model      | string | None          | ー                 | Trained model tag (example:  `SD 1.5`, `SD 3.5`, `SDXL 1.0`)                          |
+| force_download  | bool   | False         | ー                 | Whether to force the download if the model already exists.                            |
+| torch_dtype     | string, torch.dtype   | None         | ー                 | Override the default `torch.dtype` and load the model with another dtype.                                                         |
+| cache_dir       | string, Path | None    | ー                 | Path to the folder where cached files are stored.                                     |
+| resume          | bool   | False         | ー                 | Whether to resume an incomplete download.                                             |
+| token           | string | None          | ー                 | API token for Civitai authentication.                                                 |
+| skip_error      | bool   | False         | ー                 | Whether to skip errors and return None.                                               |
+
+
+
+
+
+
+
+| Name                  | Type                            | Default        | Input Available   | Description                                                                                                          |
+|:---------------------:|:------------------------------:|:--------------:|:-----------------:|:--------------------------------------------------------------------------------------------------------------------:|
+| pretrained_model_or_path | str or os.PathLike            | ー             | ー                | Keywords to search models                                                                                            |
+| checkpoint_format     | string                          | "single_file"  | `single_file`,<br>`diffusers`,<br>`all` | The format of the model checkpoint.                                                             |
+| pipeline_tag          | string                          | None           | ー                 | Tag to filter models by pipeline.                                                                                    |
+| torch_dtype           | str or torch.dtype              | None           | ー                 | Override the default `torch.dtype` and load the model with another dtype. If "auto" is passed, the dtype is automatically derived from the model's weights. |
+| force_download        | bool                            | False          | ー                 | Whether or not to force the (re-)download of the model weights and configuration files, overriding the cached versions if they exist. |
+| cache_dir             | str, os.PathLike         | None           | ー                 | Path to a directory where a downloaded pretrained model configuration is cached if the standard cache is not used.   |
+| token                 | str or bool                     | None           | ー                 | The token to use as HTTP bearer authorization for remote files.                                                      |
+
+
 
   
 > Arguments of `HFSearchPipeline.for_HF`
+
 | Name             | Type    | Default       | Description                                                   |
 |:----------------:|:-------:|:-------------:|:-------------------------------------------------------------:|
 | search_word      | string  | ー            | The search query string.                                      |
@@ -80,7 +129,7 @@ pipe = StableDIffusionPipeline.from_single_file(model_path).to("cuda")
 ### CivitaiSearchPipeline.for_civitai parameters
 | Name             | Type    | Default       | Description                                                   |
 |:----------------:|:-------:|:-------------:|:-------------------------------------------------------------:|
-| search_word      | string  | ー            | The search query string.                                      |
+| search_word      | string  | ー            | The search query string. Can be a keyword, Hugging Face or Civitai URL, local directory or file path, or a Hugging Face path (`<creator>/<repo>`).                                      |
 | model_type       | string  | "Checkpoint"  | The type of model to search for.                              |
 | base_model       | string  | None          | The base model to filter by.                                  |
 | download         | bool    | False         | Whether to download the model.                                |
