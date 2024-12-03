@@ -79,14 +79,15 @@ pipeline = EasyPipelineForInpainting.from_huggingface(
 
 ### Arguments of `EasyPipeline.from_civitai`
 
-| Name            | Type   | Default       | Description                                                                         |
-|:---------------:|:------:|:-------------:|:-----------------------------------------------------------------------------------:|
-| search_word     | string | ー            | The search query string. Can be a keyword, Civitai URL, local directory or file path. |
+| Name            | Type         | Default       | Description                                                                    |
+|:---------------:|:------------:|:-------------:|:-----------------------------------------------------------------------------------:|
+| search_word     | string, Path | ー            | The search query string. Can be a keyword, Civitai URL, local directory or file path. |
 | model_type      | string | `Checkpoint`  | The type of model to search for. [Details](#model_type)                             |
 | base_model      | string | None          | Trained model tag (example:  `SD 1.5`, `SD 3.5`, `SDXL 1.0`)                        |
+| download              | bool                | False          | Whether to download the model.                                   |
 | force_download  | bool   | False         | Whether to force the download if the model already exists.                          |
-| torch_dtype     | string, torch.dtype | None   | Override the default `torch.dtype` and load the model with another dtype.           |
-| cache_dir       | string, Path | None         | Path to the folder where cached files are stored.                                   |
+| torch_dtype     | string, torch.dtype | None   | Override the default `torch.dtype` and load the model with another dtype.     |
+| cache_dir       | string, Path | None         | Path to the folder where cached files are stored.                              |
 | resume          | bool   | False         | Whether to resume an incomplete download.                                           |
 | token           | string | None          | API token for Civitai authentication.                                               |
 | skip_error      | bool   | False         | Whether to skip errors and return None.                                             |
@@ -98,15 +99,16 @@ pipeline = EasyPipelineForInpainting.from_huggingface(
 
 ### Arguments of `EasyPipeline.from_huggingface`
 
-| Name                  | Type                            | Default        | Input Available   | Description                                                                                                          |
-|:---------------------:|:------------------------------:|:--------------:|:-----------------:|:--------------------------------------------------------------------------------------------------------------------:|
-| pretrained_model_or_path | str or os.PathLike            | ー             | ー                | Keywords to search models                                                                                            |
-| checkpoint_format     | string                          | "single_file"  | `single_file`,<br>`diffusers`,<br>`all` | The format of the model checkpoint.                                                             |
-| pipeline_tag          | string                          | None           | ー                 | Tag to filter models by pipeline.                                                                                    |
-| torch_dtype           | str or torch.dtype              | None           | ー                 | Override the default `torch.dtype` and load the model with another dtype. If "auto" is passed, the dtype is automatically derived from the model's weights. |
-| force_download        | bool                            | False          | ー                 | Whether or not to force the (re-)download of the model weights and configuration files, overriding the cached versions if they exist. |
-| cache_dir             | str, os.PathLike         | None           | ー                 | Path to a directory where a downloaded pretrained model configuration is cached if the standard cache is not used.   |
-| token                 | str or bool                     | None           | ー                 | The token to use as HTTP bearer authorization for remote files.                                                      |
+| Name                  | Type                | Default        | Description                                                      |
+|:---------------------:|:-------------------:|:--------------:|:----------------------------------------------------------------:|
+| search_word           | string, Path        | ー             | The search query string. Can be a keyword, Hugging Face URL, local directory or file path, or a Hugging Face path (`<creator>/<repo>`). |
+| checkpoint_format     | string              | `single_file`  | The format of the model checkpoint.                              |
+| pipeline_tag          | string              | None           | Tag to filter models by pipeline.                                |
+| torch_dtype           | string, torch.dtype | None           | Override the default `torch.dtype` and load the model with another dtype. |
+| download              | bool                | False          | Whether to download the model.                                   |
+| force_download        | bool                | False          | Whether or not to force the (re-)download of the model weights and configuration files, overriding the cached versions if they exist. |
+| cache_dir             | string, Path        | None           | Path to a directory where a downloaded pretrained model configuration is cached if the standard cache is not used.   |
+| token                 | string, bool        | None           | The token to use as HTTP bearer authorization for remote files.  |
 
 
 
