@@ -115,8 +115,8 @@ pipeline.load_textual_inversion(TextualInversion, token="EasyNegative")
 | Name            | Type         | Default       | Description                                                                    |
 |:---------------:|:------------:|:-------------:|:-----------------------------------------------------------------------------------:|
 | search_word     | string, Path | ー            | The search query string. Can be a keyword, Civitai URL, local directory or file path. |
-| model_type      | string | `Checkpoint`  | The type of model to search for. [Details](#model_type)                             |
-| base_model      | string | None          | Trained model tag (example:  `SD 1.5`, `SD 3.5`, `SDXL 1.0`)                        |
+| model_type      | string | `Checkpoint`  | The type of model to search for.  <br>(for example `Checkpoint`, `TextualInversion`, `Controlnet`, `LORA`, `Hypernetwork`, `AestheticGradient`, `Poses`)      |
+| base_model      | string | None          | Trained model tag (for example  `SD 1.5`, `SD 3.5`, `SDXL 1.0`)                        |
 | torch_dtype     | string, torch.dtype | None   | Override the default `torch.dtype` and load the model with another dtype.     |
 | force_download        | bool                | False          | Whether or not to force the (re-)download of the model weights and configuration files, overriding the cached versions if they exist. |
 | cache_dir       | string, Path | None         | Path to the folder where cached files are stored.                              |
@@ -129,8 +129,8 @@ pipeline.load_textual_inversion(TextualInversion, token="EasyNegative")
 | Name            | Type         | Default       | Description                                                                    |
 |:---------------:|:------------:|:-------------:|:-----------------------------------------------------------------------------------:|
 | search_word     | string, Path | ー            | The search query string. Can be a keyword, Civitai URL, local directory or file path. |
-| model_type      | string | `Checkpoint`  | The type of model to search for. [Details](#model_type)                             |
-| base_model      | string | None          | Trained model tag (example:  `SD 1.5`, `SD 3.5`, `SDXL 1.0`)                        |
+| model_type      | string | `Checkpoint`  | The type of model to search for. <br>(for example `Checkpoint`, `TextualInversion`, `Controlnet`, `LORA`, `Hypernetwork`, `AestheticGradient`, `Poses`)                             |
+| base_model      | string | None          | Trained model tag (for example  `SD 1.5`, `SD 3.5`, `SDXL 1.0`)                        |
 | download              | bool                | False          | Whether to download the model.                                   |
 | force_download  | bool   | False         | Whether to force the download if the model already exists.                          |
 | cache_dir       | string, Path | None         | Path to the folder where cached files are stored.                              |
@@ -167,18 +167,20 @@ pipeline.load_textual_inversion(TextualInversion, token="EasyNegative")
 | skip_error            | bool                | False         | Whether to skip errors and return None.                           |
 
 
+
+(for example `Checkpoint`, `TextualInversion`, `Controlnet`, `LORA`, `Hypernetwork`, `AestheticGradient`, `Poses`)
 <a id="model_type"></a>
 <details open>
 <summary>model_type</summary>
 
 | Input Available              |
 | :--------------------------: | 
-| `Checkpoint`                 | 
-| `TextualInversion`           |
-| `Hypernetwork`               |
+|                 | 
+| `           |
+|                |
 | `AestheticGradient`          |
-| `LORA`                       |
-| `Controlnet`                 |
+|                       |
+|                 |
 | `Poses`                      |
 
 </details>
