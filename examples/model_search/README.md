@@ -165,34 +165,3 @@ pipeline.load_textual_inversion(TextualInversion, token="EasyNegative")
 | token                 | string, bool        | None           | The token to use as HTTP bearer authorization for remote files.  |
 | include_params        | bool                | False         | Whether to include parameters in the returned data.               |
 | skip_error            | bool                | False         | Whether to skip errors and return None.                           |
-
-
-
-(for example `Checkpoint`, `TextualInversion`, `Controlnet`, `LORA`, `Hypernetwork`, `AestheticGradient`, `Poses`)
-<a id="model_type"></a>
-<details open>
-<summary>model_type</summary>
-
-| Input Available              |
-| :--------------------------: | 
-|                 | 
-| `           |
-|                |
-| `AestheticGradient`          |
-|                       |
-|                 |
-| `Poses`                      |
-
-</details>
-
-
-<a id="checkpoint_format"></a>
-<details open>
-<summary>checkpoint_format</summary>
-
-| Argument                     | Description                                                            |
-| :--------------------------: | :--------------------------------------------------------------------: |
-| single_file                  | Only `single file checkpoint` are searched.                            |
-| diffusers                    | Search only for `multifolder diffusers format checkpoint`              |
-
-</details>
