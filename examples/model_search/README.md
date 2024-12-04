@@ -145,7 +145,7 @@ pipeline.load_textual_inversion(TextualInversion, token="EasyNegative")
 | Name                  | Type                | Default        | Description                                                      |
 |:---------------------:|:-------------------:|:--------------:|:----------------------------------------------------------------:|
 | search_word           | string, Path        | ー             | The search query string. Can be a keyword, Hugging Face URL, local directory or file path, or a Hugging Face path (`<creator>/<repo>`). |
-| checkpoint_format     | string              | `single_file`  | The format of the model checkpoint. [Details](#checkpoint_format) |
+| checkpoint_format     | string              | `single_file`  | The format of the model checkpoint.<br>● `single_file` to search for `single file checkpoint` <br>●`diffusers` to search for `multifolder diffusers format checkpoint` |
 | torch_dtype           | string, torch.dtype | None           | Override the default `torch.dtype` and load the model with another dtype. |
 | force_download        | bool                | False          | Whether or not to force the (re-)download of the model weights and configuration files, overriding the cached versions if they exist. |
 | cache_dir             | string, Path        | None           | Path to a directory where a downloaded pretrained model configuration is cached if the standard cache is not used.   |
@@ -157,7 +157,7 @@ pipeline.load_textual_inversion(TextualInversion, token="EasyNegative")
 | Name                  | Type                | Default        | Description                                                      |
 |:---------------------:|:-------------------:|:--------------:|:----------------------------------------------------------------:|
 | search_word           | string, Path        | ー             | The search query string. Can be a keyword, Hugging Face URL, local directory or file path, or a Hugging Face path (`<creator>/<repo>`). |
-| checkpoint_format     | string              | `single_file`  | The format of the model checkpoint. [Details](#checkpoint_format) |
+| checkpoint_format     | string              | `single_file`  | The format of the model checkpoint. <br>● `single_file` to search for `single file checkpoint` <br>●`diffusers` to search for `multifolder diffusers format checkpoint` |
 | pipeline_tag          | string              | None           | Tag to filter models by pipeline.                                |
 | download              | bool                | False          | Whether to download the model.                                   |
 | force_download        | bool                | False          | Whether or not to force the (re-)download of the model weights and configuration files, overriding the cached versions if they exist. |
