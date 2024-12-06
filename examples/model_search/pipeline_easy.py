@@ -27,37 +27,38 @@ from huggingface_hub.file_download import http_get
 from huggingface_hub.utils import validate_hf_hub_args
 from huggingface_hub import (
     hf_api,
-    hf_hub_download,
+    hf_hub_download
 )
 
 from diffusers.loaders.single_file_utils import (
     _extract_repo_id_and_weights_name,
     infer_diffusers_model_type,
     load_single_file_checkpoint,
-    VALID_URL_PREFIXES,
+    VALID_URL_PREFIXES
 )
 from diffusers.pipelines.auto_pipeline import (
     AutoPipelineForText2Image,
     AutoPipelineForImage2Image,
-    AutoPipelineForInpainting,
+    AutoPipelineForInpainting
 )
 from diffusers.pipelines.controlnet import (
     StableDiffusionControlNetImg2ImgPipeline,
     StableDiffusionControlNetInpaintPipeline,
-    StableDiffusionControlNetPipeline,
+    StableDiffusionControlNetPipeline
 )
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline
 from diffusers.pipelines.stable_diffusion import (
     StableDiffusionImg2ImgPipeline,
     StableDiffusionInpaintPipeline,
-    StableDiffusionPipeline,
+    StableDiffusionPipeline
 )
 from diffusers.pipelines.stable_diffusion_xl import (
     StableDiffusionXLImg2ImgPipeline,
     StableDiffusionXLInpaintPipeline,
-    StableDiffusionXLPipeline,
+    StableDiffusionXLPipeline
 )
 from diffusers.utils import logging
+
 
 logger = logging.get_logger(__name__)
 
