@@ -1192,17 +1192,19 @@ class DiffusionPipeline(ConfigMixin, FromSingleFileMixin, PushToHubMixin):
         >>> pipeline.scheduler = scheduler
         ```
         """
-        # Copy the kwargs to re-use during loading connected pipeline.
-        kwargs_copied = kwargs.copy()
+        # Retrieve information about the path or repo ID
         path_info  = cls.get_keyword_types(pretrained_model_name_or_path)
+
+        # Get the corresponding loading method based on the path info
         load_method_name = path_info["loading_method"]
+
         if load_method_name is not None:
+            # Dynamically call the appropriate loading method
             loading_method = getattr(cls, load_method_name)
             return loading_method(pretrained_model_name_or_path, **kwargs)
         else:
+            # Raise an error if the path is invalid
             raise ValueError(f"Invalid path or URL: {pretrained_model_name_or_path}")
-
-
 
     @property
     def name_or_path(self) -> str:
