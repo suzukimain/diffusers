@@ -41,6 +41,7 @@ from tqdm.auto import tqdm
 
 from .. import __version__
 from ..configuration_utils import ConfigMixin
+from ..loaders.single_file import FromSingleFileMixin
 from ..models import AutoencoderKL
 from ..models.attention_processor import FusedAttnProcessor2_0
 from ..models.modeling_utils import _LOW_CPU_MEM_USAGE_DEFAULT, ModelMixin
@@ -129,7 +130,7 @@ class AudioPipelineOutput(BaseOutput):
     audios: np.ndarray
 
 
-class DiffusionPipeline(ConfigMixin, PushToHubMixin):
+class DiffusionPipeline(ConfigMixin, FromSingleFileMixin, PushToHubMixin):
     r"""
     Base class for all pipelines.
 
