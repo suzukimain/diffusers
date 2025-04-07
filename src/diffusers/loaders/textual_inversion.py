@@ -407,7 +407,9 @@ class TextualInversionLoaderMixin:
             if embedding.shape[-1] != expected_emb_dim:
                 linear = nn.Linear(embedding.shape[-1], expected_emb_dim)
                 init.xavier_uniform_(linear.weight)
-                embeddings[i] = linear(embedding)
+                activation = nn.ReLU()
+                dropout = nn.Dropout(p=0.2)
+                embeddings[i] = dropout(activation(linear(embedding)))
                 logger.info(f"Changed embedding dimension from {embedding.shape[-1]} to {expected_emb_dim}")
 
         # 7. Now we can be sure that loading the embedding matrix works
