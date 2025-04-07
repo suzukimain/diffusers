@@ -17,6 +17,7 @@ import safetensors
 import torch
 from huggingface_hub.utils import validate_hf_hub_args
 from torch import nn
+import torch.nn.init as init
 
 from ..models.modeling_utils import load_state_dict
 from ..utils import _get_model_file, is_accelerate_available, is_transformers_available, logging
@@ -405,6 +406,7 @@ class TextualInversionLoaderMixin:
         for i, embedding in enumerate(embeddings):
             if embedding.shape[-1] != expected_emb_dim:
                 linear = nn.Linear(embedding.shape[-1], expected_emb_dim)
+                init.xavier_uniform_(linear.weight)
                 embeddings[i] = linear(embedding)
                 logger.info(f"Changed embedding dimension from {embedding.shape[-1]} to {expected_emb_dim}")
 
