@@ -405,7 +405,7 @@ class TextualInversionLoaderMixin:
         expected_emb_dim = text_encoder.get_input_embeddings().weight.shape[-1]
         for i, embedding in enumerate(embeddings):
             if embedding.shape[-1] != expected_emb_dim:
-                linear = nn.Linear(embedding.shape[-1], expected_emb_dim,)
+                linear = nn.Linear(embedding.shape[-1], expected_emb_dim)
                 init.xavier_uniform_(linear.weight)
                 activation = nn.ReLU()
                 dropout = nn.Dropout(p=0.2)
