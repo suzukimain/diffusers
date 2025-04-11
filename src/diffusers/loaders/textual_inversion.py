@@ -410,7 +410,6 @@ class TextualInversionLoaderMixin:
                     expected_emb_dim,
                     bias=False,
                     dtype=text_encoder.dtype,
-                    device=text_encoder.device,
                 )
                 init.xavier_uniform_(linear.weight)
                 activation = nn.ReLU()
