@@ -101,7 +101,7 @@ from .pipeline_loading_utils import (
     warn_deprecated_model_variant,
 )
 
-from ..loaders.pipeline_utils import FromSingleFileMixin
+from ..loaders import FromSingleFileMixin
 
 if is_accelerate_available():
     import accelerate
