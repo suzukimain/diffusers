@@ -101,6 +101,7 @@ from .pipeline_loading_utils import (
     warn_deprecated_model_variant,
 )
 
+from ..loaders.pipeline_utils import FromSingleFileMixin
 
 if is_accelerate_available():
     import accelerate
@@ -179,7 +180,7 @@ class DeprecatedPipelineMixin:
         super().__init__(*args, **kwargs)
 
 
-class DiffusionPipeline(ConfigMixin, PushToHubMixin):
+class DiffusionPipeline(ConfigMixin, PushToHubMixin, FromSingleFileMixin):
     r"""
     Base class for all pipelines.
 
