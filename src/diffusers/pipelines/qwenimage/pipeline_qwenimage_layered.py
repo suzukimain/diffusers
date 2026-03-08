@@ -648,7 +648,9 @@ the image\n<|vision_start|><|image_pad|><|vision_end|><|im_end|>\n<|im_start|>as
             returning a tuple, the first element is a list with the generated images.
         """
         image_size = image[0].size if isinstance(image, list) else image.size
-        assert resolution in [640, 1024], f"resolution must be either 640 or 1024, but got {resolution}"
+        # Remove resolution check to allow other resolutions like 512
+        # assert resolution in [640, 1024], f"resolution must be either 640 or 1024, but got {resolution}"
+
         calculated_width, calculated_height = calculate_dimensions(
             resolution * resolution, image_size[0] / image_size[1]
         )
